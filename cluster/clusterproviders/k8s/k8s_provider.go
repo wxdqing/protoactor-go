@@ -13,7 +13,6 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/cluster"
-	"github.com/google/uuid"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -87,12 +86,13 @@ func NewWithConfig(config *rest.Config, opts ...Option) (*Provider, error) {
 // initializes the cluster provider
 func (p *Provider) init(c *cluster.Cluster) error {
 	host, port, err := c.ActorSystem.GetHostPort()
+	memberID := c.ActorSystem.ID
 	if err != nil {
 		return err
 	}
 
 	p.cluster = c
-	p.id = strings.ReplaceAll(uuid.New().String(), "-", "")
+	p.id = memberID // strings.ReplaceAll(uuid.New().String(), "-", "")
 	p.knownKinds = c.GetClusterKinds()
 	p.clusterName = c.Config.Name
 	p.clusterPods = make(map[types.UID]*v1.Pod)
