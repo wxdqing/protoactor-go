@@ -2,11 +2,12 @@ package actor
 
 import (
 	"fmt"
-	"github.com/lmittmann/tint"
 	"log/slog"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/lmittmann/tint"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/prometheus"
@@ -27,6 +28,7 @@ type Config struct {
 	// MetricsEnabled toggles emission of Proto.Actor metrics.
 	MetricsEnabled bool
 	LoggerFactory  func(system *ActorSystem) *slog.Logger
+	ActorSystemID  string
 }
 
 func defaultConfig() *Config {

@@ -20,6 +20,12 @@ func Configure(options ...ConfigOption) *Config {
 	return config
 }
 
+func WithSystemID(systemID string) ConfigOption {
+	return func(config *Config) {
+		config.ActorSystemID = systemID
+	}
+}
+
 // WithDeadLetterThrottleInterval sets the dead letter throttle interval
 func WithDeadLetterThrottleInterval(duration time.Duration) ConfigOption {
 	return func(config *Config) {

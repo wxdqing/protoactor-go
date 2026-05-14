@@ -84,8 +84,13 @@ func NewActorSystem(options ...ConfigOption) *ActorSystem {
 // configuration struct.
 func NewActorSystemWithConfig(config *Config) *ActorSystem {
 	system := &ActorSystem{}
-	system.ID = shortuuid.New()
-	system.Config = config
+
+	if config.ActorSystemID != "" {
+		system.ID = config.ActorSystemID
+	} else {
+		system.ID = shortuuid.New()
+	}
+
 	system.logger = config.LoggerFactory(system)
 	system.ProcessRegistry = NewProcessRegistry(system)
 	system.Root = NewRootContext(system, EmptyMessageHeader)
