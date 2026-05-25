@@ -1,0 +1,72 @@
+package cluster
+
+import "time"
+
+// ConfigOption configures a cluster config.
+type ConfigOption func(config *Config)
+
+// WithRequestTimeout sets the request timeout.
+func WithRequestTimeout(t time.Duration) ConfigOption {
+	return func(c *Config) {
+		c.RequestTimeoutTime = t
+	}
+}
+
+// WithRequestsLogThrottlePeriod sets the requests log throttle period.
+func WithRequestsLogThrottlePeriod(period time.Duration) ConfigOption {
+	return func(c *Config) {
+		c.RequestsLogThrottlePeriod = period
+	}
+}
+
+// WithClusterContextProducer sets the cluster context producer.
+func WithClusterContextProducer(producer ContextProducer) ConfigOption {
+	return func(c *Config) {
+		c.ClusterContextProducer = producer
+	}
+}
+
+// WithMaxNumberOfEventsInRequestLogThrottlePeriod sets the max number of events in request log throttled period.
+func WithMaxNumberOfEventsInRequestLogThrottlePeriod(maxNumber int) ConfigOption {
+	return func(c *Config) {
+		c.MaxNumberOfEventsInRequestLogThrottledPeriod = maxNumber
+	}
+}
+
+// WithKinds registers cluster kinds.
+func WithKinds(kinds ...*Kind) ConfigOption {
+	return func(c *Config) {
+		for _, kind := range kinds {
+			c.Kinds[kind.Kind] = kind
+		}
+	}
+}
+
+// WithStaticRouter sets the static router used by identity lookup placement.
+func WithStaticRouter(router StaticRouter) ConfigOption {
+	return func(c *Config) {
+		c.StaticRouter = router
+	}
+}
+
+// WithPubSubSubscriberTimeout sets a timeout used when delivering a message batch to a subscriber.
+// Default is 5s.
+func WithPubSubSubscriberTimeout(timeout time.Duration) ConfigOption {
+	return func(c *Config) {
+		c.PubSubConfig.SubscriberTimeout = timeout
+	}
+}
+
+// WithHeartbeatExpiration sets the gossip heartbeat expiration.
+func WithHeartbeatExpiration(t time.Duration) ConfigOption {
+	return func(c *Config) {
+		c.HeartbeatExpiration = t
+	}
+}
+
+// WithRequestLog toggles request logging.
+func WithRequestLog(enabled bool) ConfigOption {
+	return func(c *Config) {
+		c.RequestLog = enabled
+	}
+}
