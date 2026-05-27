@@ -39,9 +39,11 @@ require (
 require (
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/lmittmann/tint v1.1.3
+	github.com/wxdqing/staticrouter v0.0.0-20260527160151-22d37493bd28
 )
 
 require (
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-openapi/swag/cmdutils v0.26.0 // indirect
 	github.com/go-openapi/swag/conv v0.26.0 // indirect
@@ -62,6 +64,7 @@ require (
 	github.com/hashicorp/go-metrics v0.5.4 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
+	github.com/redis/go-redis/v9 v9.16.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
