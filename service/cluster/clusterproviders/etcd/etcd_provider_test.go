@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/asynkron/protoactor-go/remote"
+	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,6 +68,7 @@ func TestStartMember(t *testing.T) {
 			{
 				// Id:    "test_etcd_provider@127.0.0.1:8000",
 				Id:    fmt.Sprintf("test_etcd_provider@%s", c.ActorSystem.ID),
+				Name:  "test_etcd_provider",
 				Host:  "127.0.0.1",
 				Port:  8000,
 				Kinds: []string{},

@@ -109,6 +109,7 @@ message Member {
   int32 port = 2;
   string id = 3;
   repeated string kinds = 4;
+  string name = 5;
 }
 
 message ClusterTopology {

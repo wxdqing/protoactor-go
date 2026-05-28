@@ -43,17 +43,22 @@ func (r *StaticRouter) Route(placementContext *cluster.PlacementContext, cluster
 		return nil, false
 	}
 
-	return findMemberByID(members, route.GetNodeId())
+	return findMemberByBaseName(members, route.GetNodeId())
 }
 
-func findMemberByID(members cluster.Members, id string) (*cluster.Member, bool) {
-	if id == "" {
+func findMemberByBaseName(members cluster.Members, baseName string) (*cluster.Member, bool) {
+	if baseName == "" {
 		return nil, false
 	}
+	fitEpoch := int64(0)
+	var retMember *cluster.Member
 	for _, member := range members {
-		if member != nil && member.Id == id {
-			return member, true
+		if member != nil && member.Name == baseName {
+			_, epoch, _ := cluster.ParseMemberID(member.Id)
+			if epoch > fitEpoch {
+				retMember = member
+			}
 		}
 	}
-	return nil, false
+	return retMember, fitEpoch != 0
 }

@@ -27,8 +27,8 @@ func TestRouterRoutesStaticrouterRecordToClusterMember(t *testing.T) {
 
 	router := New(staticRouter)
 	members := cluster.Members{
-		{Id: "node-a", Kinds: []string{"player"}},
-		{Id: "node-b", Kinds: []string{"player"}},
+		{Id: "node-a", Name: "node-a", Kinds: []string{"player"}},
+		{Id: "node-b", Name: "node-b", Kinds: []string{"player"}},
 	}
 
 	member, ok := router.Route(
@@ -96,7 +96,7 @@ func TestRouterReturnsFalseWhenRoutedNodeIsNotClusterMember(t *testing.T) {
 	member, ok := router.Route(
 		&cluster.PlacementContext{NodeType: "game", RouteKey: 42},
 		cluster.NewClusterIdentity("user-42", "player"),
-		cluster.Members{{Id: "node-a"}},
+		cluster.Members{{Id: "node-a", Name: "node-a"}},
 	)
 
 	if ok {

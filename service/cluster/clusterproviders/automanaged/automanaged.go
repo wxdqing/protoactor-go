@@ -250,6 +250,7 @@ func (p *AutoManagedProvider) monitorStatuses() {
 		}
 		ms := &cluster.Member{
 			Id:    node.ID,
+			Name:  node.ClusterName,
 			Host:  node.Address,
 			Port:  int32(node.Port),
 			Kinds: node.Kinds,

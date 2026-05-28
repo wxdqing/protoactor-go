@@ -119,6 +119,7 @@ func (t *Provider) notifyStatuses() {
 
 		members = append(members, &cluster.Member{
 			Id:    status.ID,
+			Name:  t.cluster.Config.Name,
 			Port:  int32(status.Port),
 			Host:  status.Host,
 			Kinds: copiedKinds,

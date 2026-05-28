@@ -31,6 +31,7 @@ func (p *inmemoryProvider) init(c *Cluster) error {
 	}
 	p.cluster = c
 	p.self = &Member{
+		Name:  name,
 		Host:  host,
 		Port:  int32(port),
 		Id:    fmt.Sprintf("%s@%s:%d", name, host, port),

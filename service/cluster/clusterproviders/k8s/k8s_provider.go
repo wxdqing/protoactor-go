@@ -355,6 +355,7 @@ func mapPodsToMembers(clusterPods map[types.UID]*v1.Pod, logger *slog.Logger) []
 
 			members = append(members, &cluster.Member{
 				Id:    mid,
+				Name:  clusterPod.Labels[LabelCluster],
 				Host:  host,
 				Port:  int32(port),
 				Kinds: kinds,

@@ -17,12 +17,12 @@ import (
 // where a rebooted node receives a new system ID and must be treated as a
 // completely new member.
 type testProvider struct {
-        mu sync.Mutex
-        // members are keyed by ActorSystem ID to emulate node identity in the
-        // production provider. A restarted node gets a new ID, so using the ID
-        // as the map key prevents accidental reuse of stale memberships.
-        members  map[string]*Member
-        clusters []*Cluster
+	mu sync.Mutex
+	// members are keyed by ActorSystem ID to emulate node identity in the
+	// production provider. A restarted node gets a new ID, so using the ID
+	// as the map key prevents accidental reuse of stale memberships.
+	members  map[string]*Member
+	clusters []*Cluster
 }
 
 // newTestProvider constructs a fresh testProvider for unit tests.
@@ -50,7 +50,7 @@ func (p *testProvider) publish() {
 // cluster providers' behaviour.
 func (p *testProvider) StartMember(c *Cluster) error {
 	host, port, _ := c.ActorSystem.GetHostPort()
-	self := &Member{Host: host, Port: int32(port), Id: c.ActorSystem.ID, Kinds: c.GetClusterKinds()}
+	self := &Member{Name: c.Config.Name, Host: host, Port: int32(port), Id: c.ActorSystem.ID, Kinds: c.GetClusterKinds()}
 	p.mu.Lock()
 	p.members[self.Id] = self
 	p.clusters = append(p.clusters, c)

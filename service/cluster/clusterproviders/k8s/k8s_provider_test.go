@@ -12,8 +12,8 @@ import (
 	"github.com/asynkron/protoactor-go/service/cluster/identitylookup/disthash"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/asynkron/protoactor-go/remote"
+	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -75,6 +75,7 @@ func TestStartMember(t *testing.T) {
 		members := []*cluster.Member{
 			{
 				Id:    "k8scluster@127.0.0.1:8000",
+				Name:  "k8scluster",
 				Host:  "127.0.0.1",
 				Port:  8000,
 				Kinds: []string{},

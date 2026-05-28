@@ -50,6 +50,7 @@ func TestPidCacheValue_RemoveByMember(t *testing.T) {
 	t.Parallel()
 
 	member := &Member{
+		Name: "member",
 		Host: "abc",
 		Port: 123,
 	}

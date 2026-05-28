@@ -70,6 +70,7 @@ func (suite *MiscTestSuite) TestNode() {
 
 	suite.Equal(&cluster.Member{
 		Id:    "pod1",
+		Name:  "pod1",
 		Host:  "192.168.0.1",
 		Port:  int32(7788),
 		Kinds: []string{"kind1", "kind2"},
@@ -84,6 +85,20 @@ func (suite *MiscTestSuite) TestNode() {
 	suite.Nil(err)
 	node.Meta = nil
 	suite.Equal(node2, node)
+}
+
+func (suite *MiscTestSuite) TestNodeUsesBaseNameFromMemberID() {
+	node := NewNode("pod1@42", "192.168.0.1", 7788, []string{"kind1"})
+
+	suite.Equal("pod1@42", node.ID)
+	suite.Equal("pod1", node.Name)
+	suite.Equal(&cluster.Member{
+		Id:    "pod1@42",
+		Name:  "pod1",
+		Host:  "192.168.0.1",
+		Port:  int32(7788),
+		Kinds: []string{"kind1"},
+	}, node.MemberStatus())
 }
 
 type MiscTestSuite struct {

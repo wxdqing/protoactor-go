@@ -6,8 +6,8 @@ import (
 	"log/slog"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/asynkron/protoactor-go/scheduler"
+	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/api/watch"
 )
@@ -120,6 +120,7 @@ func (pa *providerActor) processConsulUpdate(index uint64, result interface{}, c
 			}
 			members = append(members, &cluster.Member{
 				Id:    memberID,
+				Name:  pa.clusterName,
 				Host:  v.Service.Address,
 				Port:  int32(v.Service.Port),
 				Kinds: v.Service.Tags,

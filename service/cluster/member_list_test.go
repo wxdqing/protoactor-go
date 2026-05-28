@@ -124,6 +124,7 @@ func newMembersForTest(count int, kinds ...string) Members {
 	members := make(Members, count)
 	for i := 0; i < count; i++ {
 		members[i] = &Member{
+			Name:  fmt.Sprintf("member-%d", i),
 			Id:    fmt.Sprintf("memberId-%d", i),
 			Host:  "127.0.0.1",
 			Port:  int32(i),
@@ -193,7 +194,7 @@ func TestMemberList_getPartitionMember(t *testing.T) {
 		obj.UpdateClusterTopology(members)
 
 		testName := fmt.Sprintf("member*%d", v)
-                t.Run(testName, func(_ *testing.T) {
+		t.Run(testName, func(_ *testing.T) {
 			//assert := assert.New(t)
 			//
 			//identity := NewClusterIdentity("name", "kind")

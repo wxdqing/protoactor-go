@@ -10,8 +10,8 @@ import (
 	"github.com/asynkron/protoactor-go/service/cluster/identitylookup/disthash"
 
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/asynkron/protoactor-go/remote"
+	"github.com/asynkron/protoactor-go/service/cluster"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,6 +68,7 @@ func TestStartMember(t *testing.T) {
 			{
 				// Id:    "mycluster@127.0.0.1:8000",
 				Id:    c.ActorSystem.ID,
+				Name:  "mycluster",
 				Host:  "127.0.0.1",
 				Port:  8000,
 				Kinds: []string{},
