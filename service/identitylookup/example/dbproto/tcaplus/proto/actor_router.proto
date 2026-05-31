@@ -1,0 +1,20 @@
+syntax = "proto3";                      // Specify the version of the protocol buffers language
+
+package tcaplusservice;
+
+option go_package = "dbproto/tcaplus";
+import "google/protobuf/descriptor.proto";
+import "tcaplusservice.optionv1.proto"; // Use the public definitions of TcaplusDB by importing them.  
+
+message ActorRouter {
+    option(tcaplusservice.tcaplus_primary_key) = "kind,identity";
+
+    string kind = 1;
+    string identity = 2;
+    string member = 3;
+    string address = 4;
+    string actorID = 5;
+    uint64 lockTime = 6;
+    uint64 activeTime = 7;
+    uint64 terminateTime = 8;
+}

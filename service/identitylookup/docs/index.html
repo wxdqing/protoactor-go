@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>identitylookup 可视化文档</title>
+  <style>
+    :root {
+      --bg: #f6f3ea;
+      --panel: #fffdf7;
+      --ink: #1f2937;
+      --muted: #5b6472;
+      --line: #d8cfbe;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --accent-3: #7c2d12;
+      --card: #fef8ec;
+      --soft: #edf7f5;
+      --warn: #fff1dd;
+      --shadow: 0 18px 40px rgba(67, 56, 36, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(15,118,110,0.08), transparent 28%),
+        radial-gradient(circle at top right, rgba(180,83,9,0.08), transparent 24%),
+        linear-gradient(180deg, #fbf8f0 0%, var(--bg) 100%);
+      line-height: 1.6;
+    }
+
+    .hero {
+      padding: 56px 24px 28px;
+      border-bottom: 1px solid rgba(216, 207, 190, 0.8);
+    }
+
+    .hero-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.35fr 0.9fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.1);
+      color: var(--accent);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { margin: 0; line-height: 1.15; }
+    h1 { font-size: 42px; margin-top: 14px; }
+    h2 { font-size: 26px; margin-bottom: 16px; }
+    h3 { font-size: 18px; margin-bottom: 8px; }
+
+    p { margin: 0; color: var(--muted); }
+
+    .hero-copy p {
+      font-size: 16px;
+      margin-top: 14px;
+      max-width: 760px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .metric {
+      background: var(--panel);
+      border: 1px solid rgba(216, 207, 190, 0.95);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 24px;
+      color: var(--ink);
+    }
+
+    .metric span {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .summary {
+      background: linear-gradient(160deg, rgba(15,118,110,0.08), rgba(180,83,9,0.08));
+      border: 1px solid rgba(216, 207, 190, 0.9);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .summary ul {
+      padding-left: 18px;
+      margin: 14px 0 0;
+      color: var(--ink);
+    }
+
+    .summary li { margin-bottom: 8px; }
+
+    .layout {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 24px;
+    }
+
+    .toc {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      background: rgba(255, 253, 247, 0.86);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(216, 207, 190, 0.9);
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .toc a {
+      display: block;
+      text-decoration: none;
+      color: var(--ink);
+      padding: 8px 10px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .toc a:hover {
+      background: rgba(15, 118, 110, 0.09);
+      color: var(--accent);
+    }
+
+    .content {
+      display: grid;
+      gap: 22px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(216, 207, 190, 0.95);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel p + p { margin-top: 10px; }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(216, 207, 190, 0.75);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .badge {
+      padding: 7px 10px;
+      background: var(--soft);
+      border: 1px solid rgba(15, 118, 110, 0.16);
+      color: var(--accent);
+      border-radius: 999px;
+      font-size: 13px;
+    }
+
+    .warn {
+      background: var(--warn);
+      border-color: rgba(180, 83, 9, 0.24);
+      color: var(--accent-3);
+    }
+
+    .uml {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 16px;
+      border: 1px solid rgba(216, 207, 190, 0.8);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #fffdfa, #fbf7ef);
+      padding: 10px;
+    }
+
+    .uml svg {
+      width: 100%;
+      height: auto;
+      min-width: 760px;
+      display: block;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend span::before {
+      content: "";
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      margin-right: 6px;
+      vertical-align: -1px;
+    }
+
+    .c1::before { background: #d8f3ef; }
+    .c2::before { background: #ffe4bc; }
+    .c3::before { background: #efe7ff; }
+    .c4::before { background: #ffe1db; }
+
+    .steps {
+      margin-top: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      border-left: 4px solid var(--accent);
+      padding: 12px 14px;
+      background: #faf7f0;
+      border-radius: 0 14px 14px 0;
+    }
+
+    .review-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .issue {
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(216, 207, 190, 0.85);
+      background: #fffaf0;
+    }
+
+    .issue strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent-3);
+    }
+
+    code {
+      background: rgba(15, 118, 110, 0.08);
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      color: #115e59;
+    }
+
+    @media (max-width: 980px) {
+      .hero-inner, .layout, .cards, .review-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toc {
+        position: static;
+      }
+
+      h1 { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <span class="eyebrow">Offline Architecture Guide</span>
+        <h1>identitylookup</h1>
+        <p>这是一个为 Proto.Actor Cluster 定制的持久化身份定位层。它不处理业务 grain，而是协调 <code>ClusterIdentity</code> 到 <code>PID</code> 的查找、激活、校验、失效和回收。</p>
+        <div class="hero-grid">
+          <div class="metric">
+            <strong>5</strong>
+            <span>核心抽象层：入口、编排、执行、存储协议、具体存储</span>
+          </div>
+          <div class="metric">
+            <strong>2</strong>
+            <span>激活模式：自动激活与手动激活</span>
+          </div>
+          <div class="metric">
+            <strong>3</strong>
+            <span>关键控制点：锁、MemberID 校验、终止回写</span>
+          </div>
+          <div class="metric">
+            <strong>2</strong>
+            <span>存储后端：Redis 与 TcaplusDB</span>
+          </div>
+        </div>
+      </div>
+      <aside class="summary">
+        <h3>一句话判断</h3>
+        <p>它是“分布式虚拟 actor 路由协调器”，不是“业务 actor 框架”。</p>
+        <ul>
+          <li>负责 identity 到 PID 的持久化映射</li>
+          <li>防止多个节点并发重复激活同一个 grain</li>
+          <li>支持 manual kind 的显式生命周期控制</li>
+          <li>通过 member epoch 识别旧 PID 是否过期</li>
+        </ul>
+      </aside>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <h3>目录</h3>
+      <a href="#purpose">职责定位</a>
+      <a href="#components">组件关系图</a>
+      <a href="#auto-flow">自动激活时序</a>
+      <a href="#manual-flow">手动激活时序</a>
+      <a href="#terminate-flow">终止回收时序</a>
+      <a href="#state">存储状态流转</a>
+      <a href="#lifecycle">生命周期摘要</a>
+      <a href="#review">代码风险</a>
+    </nav>
+
+    <main class="content">
+      <section class="panel" id="purpose">
+        <h2>职责定位</h2>
+        <p><code>StorageIdentityLookup</code> 挂在 Proto.Actor Cluster 的 identity lookup 扩展点上，对外提供 <code>Get</code>、<code>Activate</code> 和 <code>Shutdown</code>。内部真正的决策中心是 <code>Manager</code>。</p>
+        <p>这套实现的关键设计是：把激活路由信息放到外部存储，用乐观锁或记录锁协调多节点并发，然后只在目标节点本地真正 <code>Spawn</code> grain actor。</p>
+        <div class="badge-row">
+          <span class="badge">Proto.Actor Cluster 适配层</span>
+          <span class="badge">外部存储协同</span>
+          <span class="badge">MemberID + epoch 校验</span>
+          <span class="badge warn">当前实现仍存在若干高风险问题</span>
+        </div>
+      </section>
+
+      <section class="panel" id="components">
+        <h2>组件关系图</h2>
+        <p>下面这张 UML 风格组件图展示了入口层、编排层、执行层和存储层的关系。</p>
+        <div class="uml">
+          <svg viewBox="0 0 1200 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+              </marker>
+            </defs>
+            <rect x="38" y="140" width="180" height="96" rx="18" fill="#d8f3ef" stroke="#0f766e" stroke-width="2"/>
+            <text x="128" y="176" text-anchor="middle" font-size="22" fill="#0f766e">业务 / GrainClient</text>
+            <text x="128" y="205" text-anchor="middle" font-size="14" fill="#335">发起 Get / Activate</text>
+
+            <rect x="282" y="120" width="220" height="136" rx="18" fill="#d8f3ef" stroke="#0f766e" stroke-width="2"/>
+            <text x="392" y="160" text-anchor="middle" font-size="24" fill="#0f766e">StorageIdentityLookup</text>
+            <text x="392" y="190" text-anchor="middle" font-size="14" fill="#335">Proto.Actor Cluster 入口适配</text>
+            <text x="392" y="214" text-anchor="middle" font-size="14" fill="#335">委托给 Manager</text>
+
+            <rect x="562" y="90" width="238" height="194" rx="18" fill="#ffe4bc" stroke="#b45309" stroke-width="2"/>
+            <text x="681" y="132" text-anchor="middle" font-size="24" fill="#b45309">Manager</text>
+            <text x="681" y="164" text-anchor="middle" font-size="14" fill="#443">读写存储</text>
+            <text x="681" y="188" text-anchor="middle" font-size="14" fill="#443">协调加锁与远程激活</text>
+            <text x="681" y="212" text-anchor="middle" font-size="14" fill="#443">维护 MemberStrategy</text>
+            <text x="681" y="236" text-anchor="middle" font-size="14" fill="#443">处理终止与补偿</text>
+
+            <rect x="860" y="68" width="280" height="100" rx="18" fill="#efe7ff" stroke="#7c3aed" stroke-width="2"/>
+            <text x="1000" y="105" text-anchor="middle" font-size="22" fill="#6d28d9">placementActor</text>
+            <text x="1000" y="132" text-anchor="middle" font-size="14" fill="#443">本地 Spawn grain</text>
+            <text x="1000" y="152" text-anchor="middle" font-size="14" fill="#443">维护本机内存映射</text>
+
+            <rect x="860" y="196" width="280" height="88" rx="18" fill="#efe7ff" stroke="#7c3aed" stroke-width="2"/>
+            <text x="1000" y="233" text-anchor="middle" font-size="22" fill="#6d28d9">manualProxyActor</text>
+            <text x="1000" y="259" text-anchor="middle" font-size="14" fill="#443">手动激活代理入口</text>
+
+            <rect x="562" y="344" width="238" height="144" rx="18" fill="#ffe1db" stroke="#9a3412" stroke-width="2"/>
+            <text x="681" y="384" text-anchor="middle" font-size="24" fill="#9a3412">IdentityStorage</text>
+            <text x="681" y="414" text-anchor="middle" font-size="14" fill="#443">TryGetExistingActivation</text>
+            <text x="681" y="438" text-anchor="middle" font-size="14" fill="#443">TryAcquireLock / WaitForActivation</text>
+            <text x="681" y="462" text-anchor="middle" font-size="14" fill="#443">StoreActivation / RemoveActivation</text>
+
+            <rect x="860" y="340" width="126" height="150" rx="18" fill="#fff3dd" stroke="#b45309" stroke-width="2"/>
+            <text x="923" y="383" text-anchor="middle" font-size="22" fill="#b45309">Redis</text>
+            <text x="923" y="409" text-anchor="middle" font-size="14" fill="#443">JSON 记录</text>
+            <text x="923" y="432" text-anchor="middle" font-size="14" fill="#443">Lua CAS</text>
+
+            <rect x="1014" y="340" width="126" height="150" rx="18" fill="#fff3dd" stroke="#b45309" stroke-width="2"/>
+            <text x="1077" y="383" text-anchor="middle" font-size="22" fill="#b45309">Tcaplus</text>
+            <text x="1077" y="409" text-anchor="middle" font-size="14" fill="#443">Proto 表记录</text>
+            <text x="1077" y="432" text-anchor="middle" font-size="14" fill="#443">版本 CAS</text>
+
+            <line x1="218" y1="188" x2="282" y2="188" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="502" y1="188" x2="562" y2="188" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="800" y1="144" x2="860" y2="118" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="800" y1="222" x2="860" y2="240" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="681" y1="284" x2="681" y2="344" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="800" y1="418" x2="860" y2="418" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+            <line x1="800" y1="418" x2="1014" y2="418" stroke="#5b6472" stroke-width="2.5" marker-end="url(#arrow)"/>
+          </svg>
+        </div>
+        <div class="legend">
+          <span class="c1">入口层</span>
+          <span class="c2">编排层</span>
+          <span class="c3">执行层</span>
+          <span class="c4">存储协议与实现</span>
+        </div>
+      </section>
+
+      <section class="panel" id="auto-flow">
+        <h2>自动激活时序</h2>
+        <p>普通 kind 的默认路径是“查存储，失败后自动激活”。这张图是最核心的一条运行链路。</p>
+        <div class="uml">
+          <svg viewBox="0 0 1300 620" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrow2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+              </marker>
+            </defs>
+            <g font-size="16" fill="#1f2937">
+              <text x="72" y="40">Caller</text>
+              <text x="254" y="40">StorageIdentityLookup</text>
+              <text x="472" y="40">Manager</text>
+              <text x="672" y="40">IdentityStorage</text>
+              <text x="912" y="40">Remote Activator</text>
+              <text x="1130" y="40">placementActor</text>
+            </g>
+            <g stroke="#bfb49f" stroke-dasharray="8 6">
+              <line x1="90" y1="56" x2="90" y2="580"/>
+              <line x1="312" y1="56" x2="312" y2="580"/>
+              <line x1="500" y1="56" x2="500" y2="580"/>
+              <line x1="730" y1="56" x2="730" y2="580"/>
+              <line x1="978" y1="56" x2="978" y2="580"/>
+              <line x1="1172" y1="56" x2="1172" y2="580"/>
+            </g>
+            <g stroke="#5b6472" stroke-width="2.2" marker-end="url(#arrow2)" fill="none">
+              <line x1="90" y1="96" x2="312" y2="96"/>
+              <line x1="312" y1="132" x2="500" y2="132"/>
+              <line x1="500" y1="176" x2="730" y2="176"/>
+              <line x1="730" y1="214" x2="500" y2="214"/>
+              <line x1="500" y1="270" x2="730" y2="270"/>
+              <line x1="730" y1="308" x2="500" y2="308"/>
+              <line x1="500" y1="364" x2="978" y2="364"/>
+              <line x1="978" y1="404" x2="1172" y2="404"/>
+              <line x1="1172" y1="452" x2="500" y2="452"/>
+              <line x1="500" y1="500" x2="730" y2="500"/>
+              <line x1="730" y1="538" x2="500" y2="538"/>
+              <line x1="500" y1="568" x2="90" y2="568"/>
+            </g>
+            <g font-size="14" fill="#374151">
+              <text x="126" y="88">Get(identity)</text>
+              <text x="344" y="124">Get()</text>
+              <text x="540" y="168">TryGetExistingActivation</text>
+              <text x="554" y="298">无有效 PID，抢锁成功/失败</text>
+              <text x="540" y="262">TryAcquireLock</text>
+              <text x="624" y="356">ActivationRequest</text>
+              <text x="1022" y="396">本地 Spawn grain</text>
+              <text x="736" y="444">ActivationResponse(PID)</text>
+              <text x="552" y="492">StoreActivation(memberID, pid)</text>
+              <text x="770" y="530">写回 PID + MemberID</text>
+              <text x="252" y="560">返回 PID</text>
+            </g>
+            <rect x="475" y="234" width="50" height="102" rx="10" fill="#ffe4bc" stroke="#b45309"/>
+            <rect x="1147" y="388" width="50" height="48" rx="10" fill="#efe7ff" stroke="#7c3aed"/>
+            <rect x="705" y="484" width="50" height="70" rx="10" fill="#ffe1db" stroke="#9a3412"/>
+          </svg>
+        </div>
+      </section>
+
+      <section class="panel" id="manual-flow">
+        <h2>手动激活时序</h2>
+        <p>manual kind 的差异点在于：<code>Get()</code> 查不到时不会隐式创建，必须由业务先显式调用 <code>Activate()</code>。</p>
+        <div class="uml">
+          <svg viewBox="0 0 1340 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrow3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+              </marker>
+            </defs>
+            <g font-size="16" fill="#1f2937">
+              <text x="62" y="40">Caller</text>
+              <text x="230" y="40">Lookup</text>
+              <text x="392" y="40">Manager</text>
+              <text x="570" y="40">Storage</text>
+              <text x="768" y="40">manualProxyActor</text>
+              <text x="1010" y="40">placementActor</text>
+              <text x="1228" y="40">Grain</text>
+            </g>
+            <g stroke="#bfb49f" stroke-dasharray="8 6">
+              <line x1="86" y1="56" x2="86" y2="520"/>
+              <line x1="254" y1="56" x2="254" y2="520"/>
+              <line x1="430" y1="56" x2="430" y2="520"/>
+              <line x1="610" y1="56" x2="610" y2="520"/>
+              <line x1="846" y1="56" x2="846" y2="520"/>
+              <line x1="1084" y1="56" x2="1084" y2="520"/>
+              <line x1="1250" y1="56" x2="1250" y2="520"/>
+            </g>
+            <g stroke="#5b6472" stroke-width="2.2" marker-end="url(#arrow3)" fill="none">
+              <line x1="86" y1="98" x2="254" y2="98"/>
+              <line x1="254" y1="132" x2="430" y2="132"/>
+              <line x1="430" y1="176" x2="610" y2="176"/>
+              <line x1="430" y1="240" x2="846" y2="240"/>
+              <line x1="846" y1="286" x2="1084" y2="286"/>
+              <line x1="1084" y1="332" x2="1250" y2="332"/>
+              <line x1="1084" y1="384" x2="430" y2="384"/>
+              <line x1="430" y1="434" x2="610" y2="434"/>
+              <line x1="430" y1="484" x2="86" y2="484"/>
+            </g>
+            <g font-size="14" fill="#374151">
+              <text x="118" y="90">Activate(identity)</text>
+              <text x="292" y="124">Activate()</text>
+              <text x="470" y="168">TryAcquireLock / selectMember</text>
+              <text x="542" y="232">ActivationRequest</text>
+              <text x="860" y="278">包装为 ManualActivateRequest</text>
+              <text x="1120" y="324">Spawn + Init</text>
+              <text x="740" y="376">ActivationResponse(PID)</text>
+              <text x="470" y="426">StoreActivation</text>
+              <text x="252" y="476">返回 PID</text>
+            </g>
+            <rect x="827" y="262" width="38" height="48" rx="10" fill="#efe7ff" stroke="#7c3aed"/>
+            <rect x="1062" y="310" width="44" height="92" rx="10" fill="#efe7ff" stroke="#7c3aed"/>
+            <rect x="1228" y="312" width="44" height="42" rx="10" fill="#d8f3ef" stroke="#0f766e"/>
+          </svg>
+        </div>
+      </section>
+
+      <section class="panel" id="terminate-flow">
+        <h2>终止与回收时序</h2>
+        <p>本地 grain 结束后，placement actor 会负责广播失效事件，并把存储记录写成终止态。</p>
+        <div class="uml">
+          <svg viewBox="0 0 1320 560" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrow4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+              </marker>
+            </defs>
+            <g font-size="16" fill="#1f2937">
+              <text x="90" y="40">Grain</text>
+              <text x="310" y="40">placementActor</text>
+              <text x="556" y="40">Manager</text>
+              <text x="778" y="40">Storage</text>
+              <text x="980" y="40">MemberList</text>
+              <text x="1170" y="40">Other Node</text>
+            </g>
+            <g stroke="#bfb49f" stroke-dasharray="8 6">
+              <line x1="116" y1="56" x2="116" y2="520"/>
+              <line x1="366" y1="56" x2="366" y2="520"/>
+              <line x1="604" y1="56" x2="604" y2="520"/>
+              <line x1="826" y1="56" x2="826" y2="520"/>
+              <line x1="1030" y1="56" x2="1030" y2="520"/>
+              <line x1="1204" y1="56" x2="1204" y2="520"/>
+            </g>
+            <g stroke="#5b6472" stroke-width="2.2" marker-end="url(#arrow4)" fill="none">
+              <line x1="116" y1="96" x2="366" y2="96"/>
+              <line x1="366" y1="150" x2="1030" y2="150"/>
+              <line x1="366" y1="212" x2="604" y2="212"/>
+              <line x1="604" y1="264" x2="826" y2="264"/>
+              <line x1="1030" y1="324" x2="1204" y2="324"/>
+              <line x1="1204" y1="380" x2="1204" y2="380"/>
+            </g>
+            <g font-size="14" fill="#374151">
+              <text x="160" y="88">Terminated</text>
+              <text x="608" y="142">Broadcast ActivationTerminated</text>
+              <text x="420" y="204">RemovePid(identity, pid)</text>
+              <text x="640" y="256">RemoveActivation -&gt; set TerminateTime</text>
+              <text x="1038" y="316">EventStream / cluster event</text>
+              <text x="1116" y="372">PidCache.RemoveByValue</text>
+            </g>
+            <rect x="348" y="112" width="36" height="128" rx="10" fill="#efe7ff" stroke="#7c3aed"/>
+            <rect x="586" y="192" width="36" height="52" rx="10" fill="#ffe4bc" stroke="#b45309"/>
+            <rect x="808" y="244" width="36" height="52" rx="10" fill="#ffe1db" stroke="#9a3412"/>
+          </svg>
+        </div>
+      </section>
+
+      <section class="panel" id="state">
+        <h2>存储记录状态流转</h2>
+        <p>虽然代码里没有显式状态枚举，但记录字段组合事实上形成了一个状态机。</p>
+        <div class="uml">
+          <svg viewBox="0 0 1180 500" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arrow5" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L9,3 z" fill="#5b6472"/>
+              </marker>
+            </defs>
+            <rect x="50" y="202" width="150" height="84" rx="18" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+            <text x="125" y="236" text-anchor="middle" font-size="22" fill="#334155">不存在</text>
+            <text x="125" y="260" text-anchor="middle" font-size="14" fill="#475569">无记录</text>
+
+            <rect x="276" y="182" width="188" height="124" rx="18" fill="#ffe4bc" stroke="#b45309" stroke-width="2"/>
+            <text x="370" y="220" text-anchor="middle" font-size="22" fill="#92400e">锁定中</text>
+            <text x="370" y="246" text-anchor="middle" font-size="14" fill="#443">LockTime &gt; 0</text>
+            <text x="370" y="268" text-anchor="middle" font-size="14" fill="#443">PID 未确定</text>
+
+            <rect x="552" y="170" width="204" height="148" rx="18" fill="#d8f3ef" stroke="#0f766e" stroke-width="2"/>
+            <text x="654" y="212" text-anchor="middle" font-size="22" fill="#0f766e">激活完成</text>
+            <text x="654" y="238" text-anchor="middle" font-size="14" fill="#335">Address/ActorID/MemberID 完整</text>
+            <text x="654" y="260" text-anchor="middle" font-size="14" fill="#335">LockTime = 0</text>
+            <text x="654" y="282" text-anchor="middle" font-size="14" fill="#335">TerminateTime = 0</text>
+
+            <rect x="846" y="182" width="220" height="124" rx="18" fill="#ffe1db" stroke="#9a3412" stroke-width="2"/>
+            <text x="956" y="220" text-anchor="middle" font-size="22" fill="#9a3412">终止态</text>
+            <text x="956" y="246" text-anchor="middle" font-size="14" fill="#443">TerminateTime &gt; 0</text>
+            <text x="956" y="268" text-anchor="middle" font-size="14" fill="#443">等待后续重新激活</text>
+
+            <line x1="200" y1="244" x2="276" y2="244" stroke="#5b6472" stroke-width="2.4" marker-end="url(#arrow5)"/>
+            <line x1="464" y1="244" x2="552" y2="244" stroke="#5b6472" stroke-width="2.4" marker-end="url(#arrow5)"/>
+            <line x1="756" y1="244" x2="846" y2="244" stroke="#5b6472" stroke-width="2.4" marker-end="url(#arrow5)"/>
+            <path d="M956 306 C956 390, 370 390, 370 306" fill="none" stroke="#5b6472" stroke-width="2.4" marker-end="url(#arrow5)"/>
+            <g font-size="14" fill="#374151">
+              <text x="218" y="230">TryAcquireLock</text>
+              <text x="490" y="230">StoreActivation</text>
+              <text x="790" y="230">RemoveActivation</text>
+              <text x="590" y="410">终止过久或锁过期后允许重新抢占</text>
+            </g>
+          </svg>
+        </div>
+      </section>
+
+      <section class="panel" id="lifecycle">
+        <h2>生命周期摘要</h2>
+        <p>从使用方角度，可以把这套库理解为下面这 8 个阶段。</p>
+        <div class="steps">
+          <div class="step"><strong>1. Setup</strong>：把 `StorageIdentityLookup` 注册进 Proto.Actor Cluster，内部创建 `Manager`。</div>
+          <div class="step"><strong>2. Start</strong>：Manager 启动 `placementActor`、`manualProxyActor`，并订阅拓扑事件。</div>
+          <div class="step"><strong>3. Topology Learn</strong>：通过 `ClusterTopology` 建立 member name 到 epoch 的有效映射。</div>
+          <div class="step"><strong>4. Lookup</strong>：查询存储中的 `PID + MemberID` 记录并校验是否可信。</div>
+          <div class="step"><strong>5. Activate</strong>：必要时通过锁与远程请求在目标节点完成 Spawn。</div>
+          <div class="step"><strong>6. Serve</strong>：业务继续通过 grain client 使用现成 PID。</div>
+          <div class="step"><strong>7. Terminate</strong>：本地 grain 结束后广播终止事件，写回 `TerminateTime`。</div>
+          <div class="step"><strong>8. Shutdown</strong>：关闭补偿 ticker，Poison 管理 actor，并级联结束子 grain。</div>
+        </div>
+      </section>
+
+      <section class="panel" id="review">
+        <h2>代码风险</h2>
+        <p>当前实现的设计方向是对的，但代码状态并不干净。下面是这次 review 中最重要的风险点。</p>
+        <div class="review-grid">
+          <div class="issue">
+            <strong>高：导入路径污染</strong>
+            <p><code>placement_actor.go</code> 仍然引用了不一致的模块路径，属于真实的构建风险。</p>
+          </div>
+          <div class="issue">
+            <strong>高：测试未执行</strong>
+            <p><code>system_id_test.go</code> 中函数名不是 <code>TestXxx</code>，Go 测试框架不会运行它。</p>
+          </div>
+          <div class="issue">
+            <strong>中：激活失败后无显式清锁</strong>
+            <p>如果拿锁后选点失败或远程 Spawn 失败，只能等锁超时，形成短时不可用窗口。</p>
+          </div>
+          <div class="issue">
+            <strong>中：删除补偿只在内存中</strong>
+            <p>进程退出后，未完成的终止补偿会丢失，记录一致性依赖后续自然覆盖。</p>
+          </div>
+        </div>
+        <div class="cards">
+          <div class="card">
+            <h3>验证命令</h3>
+            <p>本次尝试运行了 <code>go test ./...</code>。</p>
+            <p>结果是失败，暴露出 Go build cache 权限问题，以及 `protoactor-go` 相关 `go.sum` 缺失。</p>
+          </div>
+          <div class="card">
+            <h3>建议后续动作</h3>
+            <ul>
+              <li>先统一模块导入路径，恢复基础编译。</li>
+              <li>补最小单测，至少覆盖 `SystemID` 解析和激活锁语义。</li>
+              <li>为激活失败增加显式解锁或更短回滚路径。</li>
+              <li>把乱码注释替换成可读说明。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
