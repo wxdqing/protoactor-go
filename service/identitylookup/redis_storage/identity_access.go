@@ -35,6 +35,16 @@ func (a *IdentityDataAccess) IDKey(clusterIdentity *cluster.ClusterIdentity) str
 	return strings.Join([]string{a.fieldPrefix, clusterIdentity.AsKey()}, ":")
 }
 
+// ClearRoute removes the stored route for the cluster identity.
+func (a *IdentityDataAccess) ClearRoute(clusterIdentity *cluster.ClusterIdentity) error {
+	key := a.IDKey(clusterIdentity)
+	ctx := context.Background()
+	if err := a.client.Del(ctx, key).Err(); err != nil {
+		return fmt.Errorf("failed to clear router from Redis: %w", err)
+	}
+	return nil
+}
+
 func (a *IdentityDataAccess) LookupKey(clusterIdentity *cluster.ClusterIdentity) (identitylookup.IdentityDataRecord, error) {
 	key := a.IDKey(clusterIdentity)
 	ctx := context.Background()
