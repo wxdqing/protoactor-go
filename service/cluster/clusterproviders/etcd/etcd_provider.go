@@ -92,10 +92,8 @@ func (p *Provider) init(c *cluster.Cluster) error {
 
 	p.cluster = c
 	p.clusterName = p.cluster.Config.Name
-	memberID := p.cluster.ActorSystem.ID
 	knownKinds := c.GetClusterKinds()
-	nodeName := fmt.Sprintf("%v@%v", p.clusterName, memberID)
-	p.self = NewNode(nodeName, host, port, knownKinds)
+	p.self = NewNode(p.cluster.ActorSystem.ID, host, port, knownKinds)
 	p.self.SetMeta("id", p.getID())
 	return nil
 }

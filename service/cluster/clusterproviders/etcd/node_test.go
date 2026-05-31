@@ -48,17 +48,18 @@ func TestStrToIntLogsOnError(t *testing.T) {
 func TestNodeUsesBaseNameFromMemberID(t *testing.T) {
 	t.Parallel()
 
-	node := NewNode("pod1@42", "192.168.0.1", 7788, []string{"kind1"})
+	memberID := cluster.BuildMemberID("pod1", 42)
+	node := NewNode(memberID, "192.168.0.1", 7788, []string{"kind1"})
 
-	if node.ID != "pod1@42" {
-		t.Fatalf("NewNode() ID = %q, want %q", node.ID, "pod1@42")
+	if node.ID != memberID {
+		t.Fatalf("NewNode() ID = %q, want %q", node.ID, memberID)
 	}
 	if node.Name != "pod1" {
 		t.Fatalf("NewNode() Name = %q, want %q", node.Name, "pod1")
 	}
 
 	expected := &cluster.Member{
-		Id:    "pod1@42",
+		Id:    memberID,
 		Name:  "pod1",
 		Host:  "192.168.0.1",
 		Port:  int32(7788),

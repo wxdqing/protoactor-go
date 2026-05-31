@@ -1,21 +1,24 @@
 package cluster
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBuildMemberID(t *testing.T) {
 	t.Parallel()
 
 	memberID := BuildMemberID("node-a", 42)
 
-	if memberID != "node-a@42" {
-		t.Fatalf("BuildMemberID() = %q, want %q", memberID, "node-a@42")
+	if memberID != "node-a-epoch-42" {
+		t.Fatalf("BuildMemberID() = %q, want %q", memberID, "node-a-epoch-42")
 	}
 }
 
 func TestParseMemberID(t *testing.T) {
 	t.Parallel()
 
-	name, epoch, ok := ParseMemberID("node-a@42")
+	name, epoch, ok := ParseMemberID(BuildMemberID("node-a", 42))
 
 	if !ok {
 		t.Fatalf("ParseMemberID() ok = false, want true")
@@ -47,7 +50,8 @@ func TestParseMemberIDReturnsNameWithoutEpoch(t *testing.T) {
 func TestParseMemberIDReturnsNameWhenEpochIsInvalid(t *testing.T) {
 	t.Parallel()
 
-	name, epoch, ok := ParseMemberID("node-a@not-an-epoch")
+	invalidMemberID := strings.Replace(BuildMemberID("node-a", 42), "42", "not-an-epoch", 1)
+	name, epoch, ok := ParseMemberID(invalidMemberID)
 
 	if ok {
 		t.Fatalf("ParseMemberID() ok = true, want false")

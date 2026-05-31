@@ -88,12 +88,13 @@ func (suite *MiscTestSuite) TestNode() {
 }
 
 func (suite *MiscTestSuite) TestNodeUsesBaseNameFromMemberID() {
-	node := NewNode("pod1@42", "192.168.0.1", 7788, []string{"kind1"})
+	memberID := cluster.BuildMemberID("pod1", 42)
+	node := NewNode(memberID, "192.168.0.1", 7788, []string{"kind1"})
 
-	suite.Equal("pod1@42", node.ID)
+	suite.Equal(memberID, node.ID)
 	suite.Equal("pod1", node.Name)
 	suite.Equal(&cluster.Member{
-		Id:    "pod1@42",
+		Id:    memberID,
 		Name:  "pod1",
 		Host:  "192.168.0.1",
 		Port:  int32(7788),

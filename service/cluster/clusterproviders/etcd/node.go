@@ -29,7 +29,7 @@ type Node struct {
 func NewNode(id, host string, port int, kinds []string) *Node {
 	return &Node{
 		ID:      id,
-		Name:    memberName(id),
+		Name:    cluster.MemberName(id),
 		Address: host,
 		Host:    host,
 		Port:    port,
@@ -105,16 +105,11 @@ func (n *Node) MemberStatus() *cluster.Member {
 	}
 	return &cluster.Member{
 		Id:    n.ID,
-		Name:  memberName(n.ID),
+		Name:  cluster.MemberName(n.ID),
 		Host:  host,
 		Port:  int32(port),
 		Kinds: kinds,
 	}
-}
-
-func memberName(id string) string {
-	name, _, _ := cluster.ParseMemberID(id)
-	return name
 }
 
 // SetMeta sets a metadata value.
