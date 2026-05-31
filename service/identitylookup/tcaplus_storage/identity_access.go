@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"gitee.com/wxdqing/identitylookup"
-	"gitee.com/wxdqing/identitylookup/errorx"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
 	cli "github.com/tencentyun/tcaplusdb-go-sdk/pb"
 	"google.golang.org/protobuf/proto"
 )

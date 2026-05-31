@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"gitee.com/wxdqing/identitylookup"
-	"gitee.com/wxdqing/identitylookup/errorx"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
 	"github.com/redis/go-redis/v9"
 )
 

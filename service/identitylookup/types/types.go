@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
 )
 
 type SpawnLock struct {
@@ -13,10 +13,6 @@ type SpawnLock struct {
 type StoredActivation struct {
 	Pid      *actor.PID
 	MemberID string
-}
-
-type ManualActivateRequest struct {
-	Request *cluster.ActivationRequest
 }
 
 type Member struct {

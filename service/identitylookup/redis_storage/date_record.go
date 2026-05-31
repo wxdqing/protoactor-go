@@ -1,7 +1,7 @@
 package redis_storage
 
 import (
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
 )
 
 type DataRecord struct {

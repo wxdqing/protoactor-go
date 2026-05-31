@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"time"
 
-	"gitee.com/wxdqing/identitylookup/errorx"
-	"gitee.com/wxdqing/identitylookup/types"
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
+	"github.com/asynkron/protoactor-go/service/identitylookup/types"
 )
 
 type IdentityDataAccess interface {

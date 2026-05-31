@@ -8,19 +8,17 @@ import (
 	"sync"
 	"time"
 
-	"gitee.com/wxdqing/identitylookup/errorx"
-	"gitee.com/wxdqing/identitylookup/member_strategy"
-	"gitee.com/wxdqing/identitylookup/types"
-
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/cluster"
-	clustering "github.com/asynkron/protoactor-go/cluster"
 	"github.com/asynkron/protoactor-go/eventstream"
+	"github.com/asynkron/protoactor-go/service/cluster"
+	clustering "github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
+	"github.com/asynkron/protoactor-go/service/identitylookup/member_strategy"
+	"github.com/asynkron/protoactor-go/service/identitylookup/types"
 )
 
 const (
-	StorageActivatorActorName   = "storage-activator"
-	StorageManualProxyActorName = "storage-manual-proxy"
+	StorageActivatorActorName = "storage-activator"
 )
 
 type RemoveAction struct {
@@ -31,30 +29,22 @@ type RemoveAction struct {
 type Manager struct {
 	cluster                        *clustering.Cluster
 	placementActor                 *actor.PID
-	manualProxyActor               *actor.PID
 	storage                        IdentityStorage
 	topologySub                    *eventstream.Subscription
 	memberStrategy                 MemberStrategy
+	members                        cluster.Members
 	failedRemoveAction             *sync.Map
 	handleFailRemoveActionCount    int
 	handleFailRemoveActionInterval time.Duration
 	ticker                         *time.Ticker
 	tickerDone                     chan struct{}
-
-	manualKinds map[string]bool
 }
 
-func newStorageManager(c *clustering.Cluster, storage IdentityStorage, manualKinds []string) *Manager {
-	kindsMap := make(map[string]bool)
-	for _, kind := range manualKinds {
-		kindsMap[kind] = true
-	}
-
+func newStorageManager(c *clustering.Cluster, storage IdentityStorage) *Manager {
 	return &Manager{
 		cluster:                        c,
 		storage:                        storage,
 		memberStrategy:                 member_strategy.NewDefaultMemberStrategy(c),
-		manualKinds:                    kindsMap,
 		failedRemoveAction:             &sync.Map{},
 		handleFailRemoveActionCount:    10,
 		handleFailRemoveActionInterval: time.Minute,
@@ -68,10 +58,6 @@ func (pm *Manager) Start() {
 	activatorProps := actor.PropsFromProducer(func() actor.Actor { return newPlacementActor(pm.cluster, pm) })
 	pm.placementActor, _ = system.Root.SpawnNamed(activatorProps, StorageActivatorActorName)
 	pm.cluster.Logger().Info("Started storage placement actor")
-
-	proxyProps := actor.PropsFromProducer(func() actor.Actor { return newManualProxyActor(pm.cluster, pm.placementActor) })
-	pm.manualProxyActor, _ = system.Root.SpawnNamed(proxyProps, StorageManualProxyActorName)
-	pm.cluster.Logger().Info("Started storage manual proxy actor")
 
 	pm.ticker = time.NewTicker(pm.handleFailRemoveActionInterval)
 	pm.tickerDone = make(chan struct{})
@@ -134,12 +120,7 @@ func (pm *Manager) Stop() {
 	system := pm.cluster.ActorSystem
 	system.EventStream.Unsubscribe(pm.topologySub)
 	pm.stopTicker()
-	err := system.Root.PoisonFuture(pm.manualProxyActor).Wait()
-	if err != nil {
-		pm.cluster.Logger().Error("Failed to shutdown partition manual proxy actor", slog.Any("error", err))
-	}
-
-	err = system.Root.PoisonFuture(pm.placementActor).Wait()
+	err := system.Root.PoisonFuture(pm.placementActor).Wait()
 	if err != nil {
 		pm.cluster.Logger().Error("Failed to shutdown partition placement actor", slog.Any("error", err))
 	}
@@ -172,7 +153,7 @@ func (pm *Manager) getPidFromActivation(activation *types.StoredActivation) *act
 	return activation.Pid
 }
 
-func (pm *Manager) Get(clusterIdentity *clustering.ClusterIdentity) *actor.PID {
+func (pm *Manager) Get(placementContext *clustering.PlacementContext, clusterIdentity *clustering.ClusterIdentity) *actor.PID {
 	activation, err := pm.storage.TryGetExistingActivation(clusterIdentity)
 	if err != nil {
 		pm.cluster.ActorSystem.Logger().Warn("Failed to get pid from storage", slog.Any("error", err))
@@ -186,30 +167,7 @@ func (pm *Manager) Get(clusterIdentity *clustering.ClusterIdentity) *actor.PID {
 		}
 	}
 
-	if pm.manualKinds[clusterIdentity.Kind] {
-		// manual kind 需要手动调用 Activate 创建。
-		pm.cluster.Logger().Info("get manual kind pid fail", slog.Any("clusterIdentity", clusterIdentity))
-		return nil
-	}
-
-	return pm.doActivate(clusterIdentity, StorageActivatorActorName)
-}
-
-func (pm *Manager) Activate(clusterIdentity *clustering.ClusterIdentity) *actor.PID {
-	activation, err := pm.storage.TryGetExistingActivation(clusterIdentity)
-	if err != nil {
-		pm.cluster.ActorSystem.Logger().Warn("Failed to get pid from storage", slog.Any("error", err))
-		return nil
-	}
-
-	if activation.Pid != nil {
-		pid := pm.getPidFromActivation(activation)
-		if pid != nil {
-			return pid
-		}
-	}
-
-	return pm.doActivate(clusterIdentity, StorageManualProxyActorName)
+	return pm.doActivate(placementContext, clusterIdentity)
 }
 
 func (pm *Manager) RemovePid(clusterIdentity *clustering.ClusterIdentity, pid *actor.PID) {
@@ -232,7 +190,7 @@ func (pm *Manager) RemovePid(clusterIdentity *clustering.ClusterIdentity, pid *a
 		}
 	}
 }
-func (pm *Manager) doActivate(clusterIdentity *clustering.ClusterIdentity, activatorName string) *actor.PID {
+func (pm *Manager) doActivate(placementContext *clustering.PlacementContext, clusterIdentity *clustering.ClusterIdentity) *actor.PID {
 	pm.cluster.Logger().Info("Activating", slog.Any("clusterIdentity", clusterIdentity))
 
 	spawnLock, memberID, err := pm.storage.TryAcquireLock(clusterIdentity)
@@ -252,13 +210,13 @@ func (pm *Manager) doActivate(clusterIdentity *clustering.ClusterIdentity, activ
 		return nil
 	}
 
-	member := pm.selectMember(clusterIdentity, memberID)
+	member := pm.selectMember(placementContext, clusterIdentity, memberID)
 	if member == nil {
 		pm.cluster.Logger().Error("Failed to select member", slog.Any("kind", clusterIdentity.Kind))
 		return nil
 	}
 
-	return pm.spawnActor(clusterIdentity, member, spawnLock, activatorName)
+	return pm.spawnActor(clusterIdentity, member, spawnLock, StorageActivatorActorName)
 }
 
 func (pm *Manager) spawnActor(clusterIdentity *clustering.ClusterIdentity, member *types.Member, spawnLock *types.SpawnLock, activatorName string) *actor.PID {
@@ -287,7 +245,7 @@ func (pm *Manager) spawnActor(clusterIdentity *clustering.ClusterIdentity, membe
 	return typed.Pid
 }
 
-func (pm *Manager) selectMember(clusterIdentity *cluster.ClusterIdentity, memberID string) *types.Member {
+func (pm *Manager) selectMember(placementContext *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity, memberID string) *types.Member {
 	if memberID != "" {
 		memberName, _ := ExtractSystemID(memberID)
 		pm.cluster.Logger().Info("router table member", slog.Any("member_id", memberID))
@@ -300,6 +258,15 @@ func (pm *Manager) selectMember(clusterIdentity *cluster.ClusterIdentity, member
 		pm.cluster.Logger().Warn("Failed to get member", slog.Any("member_id", memberID))
 	}
 
+	if pm.cluster.Config.StaticRouter != nil {
+		member, ok := pm.cluster.Config.StaticRouter.Route(placementContext, clusterIdentity, pm.members)
+		if !ok || member == nil {
+			pm.cluster.Logger().Warn("Failed to route member by static router", slog.Any("clusterIdentity", clusterIdentity))
+			return nil
+		}
+		return memberToStoredMember(member)
+	}
+
 	member := pm.memberStrategy.GetActivator(clusterIdentity)
 	if member == nil {
 		pm.cluster.Logger().Error("Failed to get activator", slog.Any("kind", clusterIdentity.Kind))
@@ -309,10 +276,20 @@ func (pm *Manager) selectMember(clusterIdentity *cluster.ClusterIdentity, member
 	return member
 }
 
+func memberToStoredMember(member *cluster.Member) *types.Member {
+	memberName, epoch := ExtractSystemID(member.Id)
+	return &types.Member{
+		Member: *member,
+		Name:   memberName,
+		Epoch:  epoch,
+	}
+}
+
 func (pm *Manager) onClusterTopology(tplg *clustering.ClusterTopology) {
 	pm.cluster.Logger().Info("onClusterTopology", slog.Uint64("topology-hash", tplg.TopologyHash))
 	// MemberID 中保存的是去掉 cluster 前缀后的成员标识。
 	newMembers := make([]*types.Member, len(tplg.Members))
+	clusterMembers := make(cluster.Members, len(tplg.Members))
 	for index, member := range tplg.Members {
 		memberID, _ := strings.CutPrefix(member.Id, fmt.Sprintf("%s@", pm.cluster.Config.Name))
 		memberName, epoch := ExtractSystemID(memberID)
@@ -327,10 +304,12 @@ func (pm *Manager) onClusterTopology(tplg *clustering.ClusterTopology) {
 			Epoch: epoch,
 		}
 		newMembers[index] = newMember
+		clusterMembers[index] = &newMember.Member
 
 		pm.cluster.Logger().Info("Got member", slog.Any("member", newMember), slog.String("name", memberName), slog.Uint64("epoch", epoch))
 	}
 
+	pm.members = clusterMembers
 	pm.memberStrategy.UpdateMember(newMembers)
 }
 
@@ -352,8 +331,4 @@ func (pm *Manager) SavePid(clusterIdentity *clustering.ClusterIdentity, pid *act
 	}
 
 	return nil
-}
-
-func (pm *Manager) IsManualKind(kind string) bool {
-	return pm.manualKinds[kind]
 }

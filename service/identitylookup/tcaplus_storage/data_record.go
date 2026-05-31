@@ -1,7 +1,7 @@
 package tcaplus_storage
 
 import (
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -54,11 +54,16 @@ func findMemberByBaseName(members cluster.Members, baseName string) (*cluster.Me
 	var retMember *cluster.Member
 	for _, member := range members {
 		if member != nil && member.Name == baseName {
-			_, epoch, _ := cluster.ParseMemberID(member.Id)
+			_, epoch, ok := cluster.ParseMemberID(member.Id)
+			if !ok && retMember == nil {
+				retMember = member
+				continue
+			}
 			if epoch > fitEpoch {
 				retMember = member
+				fitEpoch = epoch
 			}
 		}
 	}
-	return retMember, fitEpoch != 0
+	return retMember, retMember != nil
 }

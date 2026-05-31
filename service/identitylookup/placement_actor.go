@@ -5,9 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	"gitee.com/wxdqing/identitylookup/types"
 	"github.com/asynkron/protoactor-go/actor"
-	clustering "github.com/asynkron/protoactor-go/cluster"
+	clustering "github.com/asynkron/protoactor-go/service/cluster"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
@@ -46,8 +45,6 @@ func (p *placementActor) Receive(ctx actor.Context) {
 		p.onTerminated(msg, ctx)
 	case *clustering.ActivationRequest:
 		p.onActivationRequest(msg, ctx)
-	case *types.ManualActivateRequest:
-		p.onManualActivateRequest(msg, ctx)
 	default:
 		ctx.Logger().Error("storage placement actor received unknown message", slog.Any("message", msg), slog.Any("sender", ctx.Sender()))
 	}
@@ -137,18 +134,7 @@ func (p *placementActor) activateActor(msg *clustering.ActivationRequest, ctx ac
 }
 
 func (p *placementActor) onActivationRequest(msg *clustering.ActivationRequest, ctx actor.Context) {
-	if p.pm.IsManualKind(msg.ClusterIdentity.Kind) {
-		ctx.Logger().Error("manual kind should be create by ManualActivateRequest", slog.String("kind", msg.ClusterIdentity.Kind))
-		ctx.Respond(&clustering.ActivationResponse{})
-		return
-	}
-
 	pid := p.activateActor(msg, ctx)
-	ctx.Respond(&clustering.ActivationResponse{Pid: pid})
-}
-
-func (p *placementActor) onManualActivateRequest(msg *types.ManualActivateRequest, ctx actor.Context) {
-	pid := p.activateActor(msg.Request, ctx)
 	ctx.Respond(&clustering.ActivationResponse{Pid: pid})
 }
 

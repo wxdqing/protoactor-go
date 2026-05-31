@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"gitee.com/wxdqing/identitylookup/errorx"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
 	"github.com/tencentyun/tcaplusdb-go-sdk/pb/terror"
 	"google.golang.org/protobuf/proto"
 

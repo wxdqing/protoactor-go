@@ -2,13 +2,12 @@ package identitylookup
 
 import (
 	"github.com/asynkron/protoactor-go/actor"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
 )
 
 type StorageIdentityLookup struct {
 	storageManager *Manager
 	storage        IdentityStorage
-	manualKinds    []string
 }
 
 func NewStorageIdentityLookup(storage IdentityStorage) *StorageIdentityLookup {
@@ -17,20 +16,16 @@ func NewStorageIdentityLookup(storage IdentityStorage) *StorageIdentityLookup {
 	}
 }
 
-func (s *StorageIdentityLookup) Get(clusterIdentity *cluster.ClusterIdentity) *actor.PID {
-	return s.storageManager.Get(clusterIdentity)
+func (s *StorageIdentityLookup) Get(placementContext *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity) *actor.PID {
+	return s.storageManager.Get(placementContext, clusterIdentity)
 }
 
-func (s *StorageIdentityLookup) RemovePid(clusterIdentity *cluster.ClusterIdentity, pid *actor.PID) {
+func (s *StorageIdentityLookup) RemovePid(_ *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity, pid *actor.PID) {
 	s.storageManager.RemovePid(clusterIdentity, pid)
 }
 
-func (s *StorageIdentityLookup) Activate(clusterIdentity *cluster.ClusterIdentity) *actor.PID {
-	return s.storageManager.Activate(clusterIdentity)
-}
-
 func (s *StorageIdentityLookup) Setup(cluster *cluster.Cluster, kinds []string, isClient bool) {
-	s.storageManager = newStorageManager(cluster, s.storage, s.manualKinds)
+	s.storageManager = newStorageManager(cluster, s.storage)
 	s.storageManager.Start()
 }
 

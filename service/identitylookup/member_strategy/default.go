@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"sync"
 
-	"gitee.com/wxdqing/identitylookup/types"
-	"github.com/asynkron/protoactor-go/cluster"
+	"github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup/types"
 )
 
 type defaultMemberStrategy struct {
