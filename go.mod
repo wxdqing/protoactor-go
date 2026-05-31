@@ -19,7 +19,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.43.0
 	go.opentelemetry.io/otel/sdk/metric v1.43.0
 	golang.org/x/net v0.54.0
-	google.golang.org/grpc v1.81.0
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
 )
 
@@ -37,13 +37,16 @@ require (
 )
 
 require (
+	gitee.com/wxdqing/identitylookup v0.0.0-20260517073107-84fbc11bd824
+	github.com/asynkron/goconsole v0.0.0-20160504192649-bfa12eebf716
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/lmittmann/tint v1.1.3
+	github.com/redis/go-redis/v9 v9.19.0
+	github.com/tencentyun/tcaplusdb-go-sdk v0.2.3
 	github.com/wxdqing/staticrouter v0.0.0-20260527160151-22d37493bd28
 )
 
 require (
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-openapi/swag/cmdutils v0.26.0 // indirect
 	github.com/go-openapi/swag/conv v0.26.0 // indirect
@@ -63,10 +66,12 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-metrics v0.5.4 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
-	github.com/redis/go-redis/v9 v9.16.0 // indirect
+	github.com/tencentyun/tsf4g v0.0.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60 // indirect
