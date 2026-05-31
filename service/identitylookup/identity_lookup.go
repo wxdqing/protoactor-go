@@ -3,6 +3,7 @@ package identitylookup
 import (
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/service/cluster"
+	"github.com/asynkron/protoactor-go/service/identitylookup/errorx"
 )
 
 type StorageIdentityLookup struct {
@@ -22,6 +23,14 @@ func (s *StorageIdentityLookup) Get(placementContext *cluster.PlacementContext, 
 
 func (s *StorageIdentityLookup) RemovePid(_ *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity, pid *actor.PID) {
 	s.storageManager.RemovePid(clusterIdentity, pid)
+}
+
+func (s *StorageIdentityLookup) ClearRoute(clusterIdentity *cluster.ClusterIdentity) error {
+	cleaner, ok := s.storage.(RouteCleaner)
+	if !ok {
+		return errorx.ErrRouteCleanupUnsupported
+	}
+	return cleaner.ClearRoute(clusterIdentity)
 }
 
 func (s *StorageIdentityLookup) Setup(cluster *cluster.Cluster, kinds []string, isClient bool) {

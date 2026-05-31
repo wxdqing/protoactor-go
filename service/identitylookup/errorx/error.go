@@ -16,4 +16,6 @@ var (
 	ErrActorRouterNotFound = errors.New("actor router not found")
 	// DB操作报错
 	ErrDBOperation = errors.New("db operation error")
+	// 存储实现不支持主动清理路由
+	ErrRouteCleanupUnsupported = errors.New("route cleanup unsupported")
 )

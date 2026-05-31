@@ -26,6 +26,10 @@ type IdentityStorage interface {
 	// RemoveMemberId(memberID string)
 }
 
+type RouteCleaner interface {
+	ClearRoute(clusterIdentity *cluster.ClusterIdentity) error
+}
+
 type MemberStrategy interface {
 	GetMemberByName(memberName string) *types.Member
 	GetActivator(clusterIdentity *cluster.ClusterIdentity) *types.Member

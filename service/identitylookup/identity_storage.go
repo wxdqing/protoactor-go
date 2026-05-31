@@ -224,3 +224,11 @@ func (s *IdentityStorageImp) RemoveActivation(clusterIdentity *cluster.ClusterId
 
 	return nil
 }
+
+func (s *IdentityStorageImp) ClearRoute(clusterIdentity *cluster.ClusterIdentity) error {
+	cleaner, ok := s.dataAccess.(RouteCleaner)
+	if !ok {
+		return errorx.ErrRouteCleanupUnsupported
+	}
+	return cleaner.ClearRoute(clusterIdentity)
+}
