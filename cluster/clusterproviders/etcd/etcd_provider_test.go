@@ -3,7 +3,9 @@ package etcd
 import (
 	"fmt"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/asynkron/protoactor-go/cluster"
 	"github.com/asynkron/protoactor-go/remote"
 	"github.com/stretchr/testify/assert"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
 func newClusterForTest(name string, addr string, cp cluster.ClusterProvider) *cluster.Cluster {
@@ -32,6 +35,21 @@ func newClusterForTest(name string, addr string, cp cluster.ClusterProvider) *cl
 	return c
 }
 
+func newProviderForTest(t *testing.T) (*Provider, error) {
+	t.Helper()
+
+	endpoints := os.Getenv("PROTOACTOR_ETCD_ENDPOINTS")
+	if endpoints == "" {
+		return New()
+	}
+
+	baseKey := "/protoactor-test/" + strings.ReplaceAll(t.Name(), "/", "-")
+	return NewWithConfig(baseKey, clientv3.Config{
+		Endpoints:   strings.Split(endpoints, ","),
+		DialTimeout: time.Second * 5,
+	})
+}
+
 func TestStartMember(t *testing.T) {
 	if testing.Short() {
 		return
@@ -39,7 +57,7 @@ func TestStartMember(t *testing.T) {
 
 	a := assert.New(t)
 
-	p, err := New()
+	p, err := newProviderForTest(t)
 	a.NoError(err)
 	defer func() { _ = p.Shutdown(true) }()
 
@@ -113,7 +131,7 @@ func TestStartMember_Multiple(t *testing.T) {
 
 	for i, member := range members {
 		addr := fmt.Sprintf("%s:%d", member.host, member.port)
-		p[i], err = New()
+		p[i], err = newProviderForTest(t)
 		a.NoError(err)
 
 		c := newClusterForTest(member.cluster, addr, p[i])
