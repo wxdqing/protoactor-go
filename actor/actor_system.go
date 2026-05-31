@@ -84,6 +84,7 @@ func NewActorSystem(options ...ConfigOption) *ActorSystem {
 // configuration struct.
 func NewActorSystemWithConfig(config *Config) *ActorSystem {
 	system := &ActorSystem{}
+	system.Config = config
 
 	if config.ActorSystemID != "" {
 		system.ID = config.ActorSystemID
