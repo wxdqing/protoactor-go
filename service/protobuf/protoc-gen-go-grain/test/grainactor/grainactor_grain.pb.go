@@ -57,9 +57,11 @@ type CrossSnsGrainClient struct {
 
 // RoleSimple requests the execution on to the cluster with CallOptions
 func (g *CrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
-	var placementContext *cluster.PlacementContext
-	placementContext = &cluster.PlacementContext{NodeType: "game"}
-	return g.RoleSimpleWithPlacement(placementContext, identity, r, opts...)
+	routeKey, err := routeKeyFromServerIDOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+	return g.RoleSimpleByRouteKey(identity, routeKey, r, opts...)
 }
 
 func (g *CrossSnsGrainClient) RoleSimpleByRouteKey(identity string, routeKey uint64, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
@@ -75,6 +77,10 @@ func (g *CrossSnsGrainClient) RoleSimpleWithPlacement(placementContext *cluster.
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}
+	if placementContext != nil {
+		reqMsg.RouteKey = placementContext.RouteKey
+		reqMsg.HasRouteKey = true
+	}
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
@@ -94,9 +100,11 @@ func (g *CrossSnsGrainClient) RoleSimpleWithPlacement(placementContext *cluster.
 
 // Keepalive requests the execution on to the cluster with CallOptions
 func (g *CrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
-	var placementContext *cluster.PlacementContext
-	placementContext = &cluster.PlacementContext{NodeType: "game"}
-	return g.KeepaliveWithPlacement(placementContext, identity, r, opts...)
+	routeKey, err := routeKeyFromServerIDOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+	return g.KeepaliveByRouteKey(identity, routeKey, r, opts...)
 }
 
 func (g *CrossSnsGrainClient) KeepaliveByRouteKey(identity string, routeKey uint64, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
@@ -112,6 +120,10 @@ func (g *CrossSnsGrainClient) KeepaliveWithPlacement(placementContext *cluster.P
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
+	if placementContext != nil {
+		reqMsg.RouteKey = placementContext.RouteKey
+		reqMsg.HasRouteKey = true
+	}
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
@@ -168,9 +180,11 @@ type CrossMailGrainClient struct {
 
 // LoadMail requests the execution on to the cluster with CallOptions
 func (g *CrossMailGrainClient) LoadMail(identity string, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
-	var placementContext *cluster.PlacementContext
-	placementContext = &cluster.PlacementContext{NodeType: "game"}
-	return g.LoadMailWithPlacement(placementContext, identity, r, opts...)
+	routeKey, err := routeKeyFromServerIDOptions(opts)
+	if err != nil {
+		return nil, err
+	}
+	return g.LoadMailByRouteKey(identity, routeKey, r, opts...)
 }
 
 func (g *CrossMailGrainClient) LoadMailByRouteKey(identity string, routeKey uint64, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
@@ -186,6 +200,10 @@ func (g *CrossMailGrainClient) LoadMailWithPlacement(placementContext *cluster.P
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 2, MessageData: bytes}
+	if placementContext != nil {
+		reqMsg.RouteKey = placementContext.RouteKey
+		reqMsg.HasRouteKey = true
+	}
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossMail, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
@@ -212,6 +230,35 @@ type playerHandler struct {
 	handler PlayerActor
 }
 
+type playerServerIDKey struct{}
+
+// WithServerIDKey routes player actor calls by server_id.
+func WithServerIDKey(serverID uint64) cluster.GrainCallOption {
+	return cluster.WithRouteKey(serverID)
+}
+
+// GetServerIDKey returns the server_id route key from ctx.
+func GetServerIDKey(ctx context.Context) (uint64, error) {
+	serverID, ok := ctx.Value(playerServerIDKey{}).(uint64)
+	if !ok {
+		return 0, fmt.Errorf("missing route key server_id")
+	}
+
+	return serverID, nil
+}
+
+func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error) {
+	config := &cluster.GrainCallConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+	if !config.HasRouteKey {
+		return 0, fmt.Errorf("missing route key option WithServerIDKey")
+	}
+
+	return config.RouteKey, nil
+}
+
 func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainRequest) (proto.Message, error) {
 	switch req.MethodIndex {
 	case 0:
@@ -222,7 +269,11 @@ func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainReques
 					"argument": msg.String(),
 				})
 		}
-		return h.handler.RoleSimple(ctx, msg)
+		if !req.HasRouteKey {
+			return nil, fmt.Errorf("missing route key server_id")
+		}
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
+		return h.handler.RoleSimple(handlerCtx, msg)
 	case 1:
 		msg := &KeepaliveRequest{}
 		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
@@ -231,7 +282,11 @@ func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainReques
 					"argument": msg.String(),
 				})
 		}
-		return h.handler.Keepalive(ctx, msg)
+		if !req.HasRouteKey {
+			return nil, fmt.Errorf("missing route key server_id")
+		}
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
+		return h.handler.Keepalive(handlerCtx, msg)
 	case 2:
 		msg := &LoadMailRequest{}
 		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
@@ -240,7 +295,11 @@ func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainReques
 					"argument": msg.String(),
 				})
 		}
-		return h.handler.LoadMail(ctx, msg)
+		if !req.HasRouteKey {
+			return nil, fmt.Errorf("missing route key server_id")
+		}
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
+		return h.handler.LoadMail(handlerCtx, msg)
 	default:
 		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))
 	}

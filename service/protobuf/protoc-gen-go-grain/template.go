@@ -26,6 +26,7 @@ type serviceDesc struct {
 	Kind                  string
 	NodeType              string
 	Actor                 string
+	RouteKeyField         string
 	UseGrainactor         bool
 	Methods               []*methodDesc
 }
@@ -39,12 +40,13 @@ type methodDesc struct {
 }
 
 type actorDesc struct {
-	Name     string
-	Actor    string
-	Kind     string
-	NodeType string
-	Services []*serviceDesc
-	Methods  []*actorMethodDesc
+	Name          string
+	Actor         string
+	Kind          string
+	NodeType      string
+	RouteKeyField string
+	Services      []*serviceDesc
+	Methods       []*actorMethodDesc
 }
 
 type actorMethodDesc struct {
@@ -82,6 +84,7 @@ func (s *serviceDesc) execute() string {
 	buf := new(bytes.Buffer)
 	tmpl, err := template.New("grain").Funcs(template.FuncMap{
 		"lowerFirst": lowerFirst,
+		"toCamel":    toCamel,
 	}).Parse(strings.TrimSpace(grainTemplate))
 	if err != nil {
 		panic(err)
@@ -97,6 +100,7 @@ func (a *actorDesc) execute() string {
 	buf := new(bytes.Buffer)
 	tmpl, err := template.New("actor").Funcs(template.FuncMap{
 		"lowerFirst": lowerFirst,
+		"toCamel":    toCamel,
 	}).Parse(strings.TrimSpace(actorTemplate))
 	if err != nil {
 		panic(err)

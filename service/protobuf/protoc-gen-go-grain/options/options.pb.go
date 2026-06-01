@@ -77,6 +77,58 @@ func (x *MethodOptions) GetFuture() bool {
 	return false
 }
 
+type ActorRouteKey struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Actor         string                 `protobuf:"bytes,1,opt,name=actor,proto3" json:"actor,omitempty"`
+	Field         string                 `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActorRouteKey) Reset() {
+	*x = ActorRouteKey{}
+	mi := &file_service_protobuf_protoc_gen_go_grain_options_options_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActorRouteKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActorRouteKey) ProtoMessage() {}
+
+func (x *ActorRouteKey) ProtoReflect() protoreflect.Message {
+	mi := &file_service_protobuf_protoc_gen_go_grain_options_options_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActorRouteKey.ProtoReflect.Descriptor instead.
+func (*ActorRouteKey) Descriptor() ([]byte, []int) {
+	return file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ActorRouteKey) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *ActorRouteKey) GetField() string {
+	if x != nil {
+		return x.Field
+	}
+	return ""
+}
+
 var file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
 		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
@@ -84,6 +136,14 @@ var file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes = [
 		Field:         50000,
 		Name:          "options.method_options",
 		Tag:           "bytes,50000,opt,name=method_options",
+		Filename:      "service/protobuf/protoc-gen-go-grain/options/options.proto",
+	},
+	{
+		ExtendedType:  (*descriptorpb.FileOptions)(nil),
+		ExtensionType: ([]*ActorRouteKey)(nil),
+		Field:         50004,
+		Name:          "options.actor_route_key",
+		Tag:           "bytes,50004,rep,name=actor_route_key",
 		Filename:      "service/protobuf/protoc-gen-go-grain/options/options.proto",
 	},
 	{
@@ -110,6 +170,14 @@ var file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes = [
 		Tag:           "bytes,50003,opt,name=actor",
 		Filename:      "service/protobuf/protoc-gen-go-grain/options/options.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50005,
+		Name:          "options.route_key_field",
+		Tag:           "bytes,50005,opt,name=route_key_field",
+		Filename:      "service/protobuf/protoc-gen-go-grain/options/options.proto",
+	},
 }
 
 // Extension fields to descriptorpb.MethodOptions.
@@ -118,14 +186,22 @@ var (
 	E_MethodOptions = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[0]
 )
 
+// Extension fields to descriptorpb.FileOptions.
+var (
+	// repeated options.ActorRouteKey actor_route_key = 50004;
+	E_ActorRouteKey = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[1]
+)
+
 // Extension fields to descriptorpb.ServiceOptions.
 var (
 	// optional string kind = 50001;
-	E_Kind = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[1]
+	E_Kind = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[2]
 	// optional string node_type = 50002;
-	E_NodeType = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[2]
+	E_NodeType = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[3]
 	// optional string actor = 50003;
-	E_Actor = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[3]
+	E_Actor = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[4]
+	// optional string route_key_field = 50005;
+	E_RouteKeyField = &file_service_protobuf_protoc_gen_go_grain_options_options_proto_extTypes[5]
 )
 
 var File_service_protobuf_protoc_gen_go_grain_options_options_proto protoreflect.FileDescriptor
@@ -135,11 +211,16 @@ const file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDesc = 
 	":service/protobuf/protoc-gen-go-grain/options/options.proto\x12\aoptions\x1a google/protobuf/descriptor.proto\"I\n" +
 	"\rMethodOptions\x12 \n" +
 	"\vreenterable\x18\x01 \x01(\bR\vreenterable\x12\x16\n" +
-	"\x06future\x18\x02 \x01(\bR\x06future:_\n" +
-	"\x0emethod_options\x12\x1e.google.protobuf.MethodOptions\x18І\x03 \x01(\v2\x16.options.MethodOptionsR\rmethodOptions:5\n" +
+	"\x06future\x18\x02 \x01(\bR\x06future\";\n" +
+	"\rActorRouteKey\x12\x14\n" +
+	"\x05actor\x18\x01 \x01(\tR\x05actor\x12\x14\n" +
+	"\x05field\x18\x02 \x01(\tR\x05field:_\n" +
+	"\x0emethod_options\x12\x1e.google.protobuf.MethodOptions\x18І\x03 \x01(\v2\x16.options.MethodOptionsR\rmethodOptions:^\n" +
+	"\x0factor_route_key\x12\x1c.google.protobuf.FileOptions\x18Ԇ\x03 \x03(\v2\x16.options.ActorRouteKeyR\ractorRouteKey:5\n" +
 	"\x04kind\x12\x1f.google.protobuf.ServiceOptions\x18ц\x03 \x01(\tR\x04kind:>\n" +
 	"\tnode_type\x12\x1f.google.protobuf.ServiceOptions\x18҆\x03 \x01(\tR\bnodeType:7\n" +
-	"\x05actor\x12\x1f.google.protobuf.ServiceOptions\x18ӆ\x03 \x01(\tR\x05actorBPZNgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/optionsb\x06proto3"
+	"\x05actor\x12\x1f.google.protobuf.ServiceOptions\x18ӆ\x03 \x01(\tR\x05actor:I\n" +
+	"\x0froute_key_field\x12\x1f.google.protobuf.ServiceOptions\x18Ն\x03 \x01(\tR\rrouteKeyFieldBPZNgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/optionsb\x06proto3"
 
 var (
 	file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDescOnce sync.Once
@@ -153,22 +234,27 @@ func file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDescGZIP
 	return file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDescData
 }
 
-var file_service_protobuf_protoc_gen_go_grain_options_options_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_service_protobuf_protoc_gen_go_grain_options_options_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_service_protobuf_protoc_gen_go_grain_options_options_proto_goTypes = []any{
 	(*MethodOptions)(nil),               // 0: options.MethodOptions
-	(*descriptorpb.MethodOptions)(nil),  // 1: google.protobuf.MethodOptions
-	(*descriptorpb.ServiceOptions)(nil), // 2: google.protobuf.ServiceOptions
+	(*ActorRouteKey)(nil),               // 1: options.ActorRouteKey
+	(*descriptorpb.MethodOptions)(nil),  // 2: google.protobuf.MethodOptions
+	(*descriptorpb.FileOptions)(nil),    // 3: google.protobuf.FileOptions
+	(*descriptorpb.ServiceOptions)(nil), // 4: google.protobuf.ServiceOptions
 }
 var file_service_protobuf_protoc_gen_go_grain_options_options_proto_depIdxs = []int32{
-	1, // 0: options.method_options:extendee -> google.protobuf.MethodOptions
-	2, // 1: options.kind:extendee -> google.protobuf.ServiceOptions
-	2, // 2: options.node_type:extendee -> google.protobuf.ServiceOptions
-	2, // 3: options.actor:extendee -> google.protobuf.ServiceOptions
-	0, // 4: options.method_options:type_name -> options.MethodOptions
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	4, // [4:5] is the sub-list for extension type_name
-	0, // [0:4] is the sub-list for extension extendee
+	2, // 0: options.method_options:extendee -> google.protobuf.MethodOptions
+	3, // 1: options.actor_route_key:extendee -> google.protobuf.FileOptions
+	4, // 2: options.kind:extendee -> google.protobuf.ServiceOptions
+	4, // 3: options.node_type:extendee -> google.protobuf.ServiceOptions
+	4, // 4: options.actor:extendee -> google.protobuf.ServiceOptions
+	4, // 5: options.route_key_field:extendee -> google.protobuf.ServiceOptions
+	0, // 6: options.method_options:type_name -> options.MethodOptions
+	1, // 7: options.actor_route_key:type_name -> options.ActorRouteKey
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	6, // [6:8] is the sub-list for extension type_name
+	0, // [0:6] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -183,8 +269,8 @@ func file_service_protobuf_protoc_gen_go_grain_options_options_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDesc), len(file_service_protobuf_protoc_gen_go_grain_options_options_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
-			NumExtensions: 4,
+			NumMessages:   2,
+			NumExtensions: 6,
 			NumServices:   0,
 		},
 		GoTypes:           file_service_protobuf_protoc_gen_go_grain_options_options_proto_goTypes,

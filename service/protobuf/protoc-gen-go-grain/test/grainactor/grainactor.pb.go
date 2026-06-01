@@ -24,7 +24,7 @@ const (
 
 type RoleSimpleRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleId        uint64                 `protobuf:"varint,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	ServerId      uint64                 `protobuf:"varint,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -59,9 +59,9 @@ func (*RoleSimpleRequest) Descriptor() ([]byte, []int) {
 	return file_test_grainactor_grainactor_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *RoleSimpleRequest) GetRoleId() uint64 {
+func (x *RoleSimpleRequest) GetServerId() uint64 {
 	if x != nil {
-		return x.RoleId
+		return x.ServerId
 	}
 	return 0
 }
@@ -112,7 +112,7 @@ func (x *RoleSimpleResponse) GetMessage() string {
 
 type KeepaliveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleId        uint64                 `protobuf:"varint,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	ServerId      uint64                 `protobuf:"varint,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -147,9 +147,9 @@ func (*KeepaliveRequest) Descriptor() ([]byte, []int) {
 	return file_test_grainactor_grainactor_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *KeepaliveRequest) GetRoleId() uint64 {
+func (x *KeepaliveRequest) GetServerId() uint64 {
 	if x != nil {
-		return x.RoleId
+		return x.ServerId
 	}
 	return 0
 }
@@ -200,7 +200,7 @@ func (x *KeepaliveResponse) GetServerTime() int64 {
 
 type LoadMailRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoleId        uint64                 `protobuf:"varint,1,opt,name=role_id,json=roleId,proto3" json:"role_id,omitempty"`
+	ServerId      uint64                 `protobuf:"varint,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -235,9 +235,9 @@ func (*LoadMailRequest) Descriptor() ([]byte, []int) {
 	return file_test_grainactor_grainactor_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *LoadMailRequest) GetRoleId() uint64 {
+func (x *LoadMailRequest) GetServerId() uint64 {
 	if x != nil {
-		return x.RoleId
+		return x.ServerId
 	}
 	return 0
 }
@@ -291,18 +291,18 @@ var File_test_grainactor_grainactor_proto protoreflect.FileDescriptor
 const file_test_grainactor_grainactor_proto_rawDesc = "" +
 	"\n" +
 	" test/grainactor/grainactor.proto\x12\n" +
-	"grainactor\x1a:service/protobuf/protoc-gen-go-grain/options/options.proto\",\n" +
-	"\x11RoleSimpleRequest\x12\x17\n" +
-	"\arole_id\x18\x01 \x01(\x04R\x06roleId\".\n" +
+	"grainactor\x1a:service/protobuf/protoc-gen-go-grain/options/options.proto\"0\n" +
+	"\x11RoleSimpleRequest\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\x04R\bserverId\".\n" +
 	"\x12RoleSimpleResponse\x12\x18\n" +
-	"\amessage\x18\x01 \x01(\tR\amessage\"+\n" +
-	"\x10KeepaliveRequest\x12\x17\n" +
-	"\arole_id\x18\x01 \x01(\x04R\x06roleId\"4\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\"/\n" +
+	"\x10KeepaliveRequest\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\x04R\bserverId\"4\n" +
 	"\x11KeepaliveResponse\x12\x1f\n" +
 	"\vserver_time\x18\x01 \x01(\x03R\n" +
-	"serverTime\"*\n" +
-	"\x0fLoadMailRequest\x12\x17\n" +
-	"\arole_id\x18\x01 \x01(\x04R\x06roleId\"(\n" +
+	"serverTime\".\n" +
+	"\x0fLoadMailRequest\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\x04R\bserverId\"(\n" +
 	"\x10LoadMailResponse\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x05R\x05count2\xc9\x01\n" +
 	"\bCrossSns\x12M\n" +
@@ -310,7 +310,8 @@ const file_test_grainactor_grainactor_proto_rawDesc = "" +
 	"RoleSimple\x12\x1d.grainactor.RoleSimpleRequest\x1a\x1e.grainactor.RoleSimpleResponse\"\x00\x12J\n" +
 	"\tKeepalive\x12\x1c.grainactor.KeepaliveRequest\x1a\x1d.grainactor.KeepaliveResponse\"\x00\x1a\"\x8a\xb5\x18\fplayer_equip\x92\xb5\x18\x04game\x9a\xb5\x18\x06player2x\n" +
 	"\tCrossMail\x12G\n" +
-	"\bLoadMail\x12\x1b.grainactor.LoadMailRequest\x1a\x1c.grainactor.LoadMailResponse\"\x00\x1a\"\x8a\xb5\x18\fplayer_equip\x92\xb5\x18\x04game\x9a\xb5\x18\x06playerBXZVgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/test/grainactorb\x06proto3"
+	"\bLoadMail\x12\x1b.grainactor.LoadMailRequest\x1a\x1c.grainactor.LoadMailResponse\"\x00\x1a\"\x8a\xb5\x18\fplayer_equip\x92\xb5\x18\x04game\x9a\xb5\x18\x06playerBo\xa2\xb5\x18\x13\n" +
+	"\x06player\x12\tserver_idZVgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/test/grainactorb\x06proto3"
 
 var (
 	file_test_grainactor_grainactor_proto_rawDescOnce sync.Once

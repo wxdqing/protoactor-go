@@ -106,11 +106,19 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Future(r *{{ $method.
 // {{ $method.Name }} requests the execution on to the cluster with CallOptions
 {{ if $service.UseGrainactor -}}
 func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
+	{{- if $service.RouteKeyField }}
+	routeKey, err := routeKeyFrom{{ toCamel $service.RouteKeyField }}Options(opts)
+	if err != nil {
+		return nil, err
+	}
+	return g.{{ $method.Name }}ByRouteKey(identity, routeKey, r, opts...)
+	{{- else }}
 	var placementContext *cluster.PlacementContext
 	{{- if $service.NodeType }}
 	placementContext = &cluster.PlacementContext{NodeType: "{{ $service.NodeType }}"}
 	{{- end }}
 	return g.{{ $method.Name }}WithPlacement(placementContext, identity, r, opts...)
+	{{- end }}
 }
 
 func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}ByRouteKey(identity string, routeKey uint64, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
@@ -131,6 +139,12 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(r *{{ $method.Input 
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes}
+	{{ if and $service.UseGrainactor $service.RouteKeyField -}}
+	if placementContext != nil {
+		reqMsg.RouteKey = placementContext.RouteKey
+		reqMsg.HasRouteKey = true
+	}
+	{{ end -}}
 	{{ if $service.UseGrainactor -}}
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
 	{{- else if $service.UsePlacementContext -}}

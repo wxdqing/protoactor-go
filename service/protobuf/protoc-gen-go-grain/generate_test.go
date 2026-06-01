@@ -38,6 +38,11 @@ func Test_toCamel(t *testing.T) {
 			want: "SystemError",
 		},
 		{
+			name: "snake initialism",
+			args: args{"server_id"},
+			want: "ServerID",
+		},
+		{
 			name: "upper1",
 			args: args{"UNKNOWN"},
 			want: "Unknown",
@@ -116,9 +121,10 @@ func TestGrainactorTemplateUsesResolvedServiceOptions(t *testing.T) {
 
 func TestActorTemplateComposesServicesByActorGroup(t *testing.T) {
 	desc := &actorDesc{
-		Name:  "Player",
-		Actor: "player",
-		Kind:  "player_equip",
+		Name:          "Player",
+		Actor:         "player",
+		Kind:          "player_equip",
+		RouteKeyField: "server_id",
 		Services: []*serviceDesc{
 			{Name: "CrossSns"},
 			{Name: "CrossMail"},
@@ -140,9 +146,10 @@ func TestActorTemplateComposesServicesByActorGroup(t *testing.T) {
 
 func TestActorTemplateDispatchesByActorScopedMethodIndex(t *testing.T) {
 	desc := &actorDesc{
-		Name:  "Player",
-		Actor: "player",
-		Kind:  "player_equip",
+		Name:          "Player",
+		Actor:         "player",
+		Kind:          "player_equip",
+		RouteKeyField: "server_id",
 		Methods: []*actorMethodDesc{
 			{
 				Service: &serviceDesc{Name: "CrossSns"},
@@ -182,6 +189,44 @@ func TestActorTemplateDispatchesByActorScopedMethodIndex(t *testing.T) {
 	requireContains(t, got, `cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))`)
 	requireNotContains(t, got, "Binding")
 	requireNotContains(t, got, "MessageTypeName")
+}
+
+func TestActorTemplateAddsRouteKeyToHandlerContext(t *testing.T) {
+	desc := &actorDesc{
+		Name:          "Player",
+		Actor:         "player",
+		Kind:          "player_equip",
+		RouteKeyField: "server_id",
+		Methods: []*actorMethodDesc{
+			{
+				Service: &serviceDesc{Name: "CrossSns", Actor: "player", RouteKeyField: "server_id"},
+				Method: &methodDesc{
+					Name:    "Keepalive",
+					Input:   "KeepaliveRequest",
+					Output:  "KeepaliveResponse",
+					Index:   0,
+					Options: &options.MethodOptions{},
+				},
+				Index: 0,
+			},
+		},
+		Services: []*serviceDesc{
+			{Name: "CrossSns"},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "type playerServerIDKey struct{}")
+	requireContains(t, got, "func WithServerIDKey(serverID uint64) cluster.GrainCallOption {")
+	requireContains(t, got, "return cluster.WithRouteKey(serverID)")
+	requireContains(t, got, "func GetServerIDKey(ctx context.Context) (uint64, error) {")
+	requireContains(t, got, `return 0, fmt.Errorf("missing route key server_id")`)
+	requireContains(t, got, "func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error)")
+	requireContains(t, got, `return 0, fmt.Errorf("missing route key option WithServerIDKey")`)
+	requireContains(t, got, `return nil, fmt.Errorf("missing route key server_id")`)
+	requireContains(t, got, "handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))")
+	requireContains(t, got, "return h.handler.Keepalive(handlerCtx, msg)")
 }
 
 func TestBuildActorDescsAssignsActorScopedMethodIndexes(t *testing.T) {
@@ -288,6 +333,34 @@ func TestGrainactorTemplateGeneratesPlacementHelpers(t *testing.T) {
 	requireContains(t, got, `&cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}`)
 	requireContains(t, got, `&cluster.PlacementContext{NodeType: "game"}`)
 	requireContains(t, got, "g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)")
+}
+
+func TestGrainactorTemplateGeneratesRouteKeyOption(t *testing.T) {
+	desc := &serviceDesc{
+		Name:                  "CrossSns",
+		ClusterImportPath:     serviceClusterImportPath,
+		ClusterImportPathName: "cluster",
+		UsePlacementContext:   true,
+		Kind:                  "player_equip",
+		NodeType:              "game",
+		Actor:                 "player",
+		RouteKeyField:         "server_id",
+		UseGrainactor:         true,
+		Methods: []*methodDesc{
+			{
+				Name:    "RoleSimple",
+				Input:   "RoleSimpleRequest",
+				Output:  "RoleSimpleResponse",
+				Index:   0,
+				Options: &options.MethodOptions{},
+			},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "routeKey, err := routeKeyFromServerIDOptions(opts)")
+	requireContains(t, got, "return g.RoleSimpleByRouteKey(identity, routeKey, r, opts...)")
 }
 
 func TestBuildActorDescsRejectsDuplicateMethodNames(t *testing.T) {

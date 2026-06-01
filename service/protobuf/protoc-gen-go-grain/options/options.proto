@@ -14,12 +14,22 @@ message MethodOptions {
   bool future = 2;
 }
 
+message ActorRouteKey {
+  string actor = 1;
+  string field = 2;
+}
+
 extend google.protobuf.MethodOptions {
   MethodOptions method_options = 50000;
+}
+
+extend google.protobuf.FileOptions {
+  repeated ActorRouteKey actor_route_key = 50004;
 }
 
 extend google.protobuf.ServiceOptions {
   string kind = 50001;
   string node_type = 50002;
   string actor = 50003;
+  string route_key_field = 50005;
 }

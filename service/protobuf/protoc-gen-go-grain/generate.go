@@ -57,7 +57,7 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) {
 	g := gen.NewGeneratedFile(filename, file.GoImportPath)
 
 	generateHeader(gen, g, file)
-	generateContent(g, file)
+	generateContent(gen, g, file)
 }
 
 func generateHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
@@ -80,7 +80,7 @@ func generateHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *proto
 	g.P()
 }
 
-func generateContent(g *protogen.GeneratedFile, file *protogen.File) {
+func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
 	g.P("package ", file.GoPackageName)
 
 	clusterPackage := protogen.GoImportPath(clusterImportPath)
@@ -97,11 +97,12 @@ func generateContent(g *protogen.GeneratedFile, file *protogen.File) {
 		return
 	}
 
+	routeKeyFields := collectActorRouteKeyFields(gen)
 	services := make([]*serviceDesc, 0, len(file.Services))
 	usesGrainactor := false
 	usesLegacyActor := false
 	for _, service := range file.Services {
-		sd := buildServiceDesc(service, g)
+		sd := buildServiceDesc(service, g, routeKeyFields)
 		if len(sd.Methods) != 0 {
 			services = append(services, sd)
 			usesGrainactor = usesGrainactor || sd.UseGrainactor
@@ -145,12 +146,14 @@ func generateContent(g *protogen.GeneratedFile, file *protogen.File) {
 	generateRespond(g)
 }
 
-func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile) *serviceDesc {
+func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile, routeKeyFields map[string]string) *serviceDesc {
 	if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
 		g.P("//")
 		g.P(deprecationComment)
 	}
 
+	actor := getServiceStringOption(service, options.E_Actor, service.GoName)
+	routeKeyField := getServiceStringOption(service, options.E_RouteKeyField, routeKeyFields[actor])
 	sd := &serviceDesc{
 		Name:                  service.GoName,
 		ClusterImportPath:     clusterImportPath,
@@ -158,7 +161,8 @@ func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile) *ser
 		UsePlacementContext:   clusterImportPath == serviceClusterImportPath,
 		Kind:                  getServiceStringOption(service, options.E_Kind, service.GoName),
 		NodeType:              getServiceStringOption(service, options.E_NodeType, ""),
-		Actor:                 getServiceStringOption(service, options.E_Actor, service.GoName),
+		Actor:                 actor,
+		RouteKeyField:         routeKeyField,
 		UseGrainactor:         hasServiceOption(service, options.E_Kind) || hasServiceOption(service, options.E_NodeType) || hasServiceOption(service, options.E_Actor),
 	}
 
@@ -190,6 +194,32 @@ func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile) *ser
 	return sd
 }
 
+func collectActorRouteKeyFields(gen *protogen.Plugin) map[string]string {
+	routeKeyFields := make(map[string]string)
+	if gen == nil {
+		return routeKeyFields
+	}
+
+	for _, file := range gen.Files {
+		if file == nil || file.Desc == nil {
+			continue
+		}
+		values := proto.GetExtension(file.Desc.Options(), options.E_ActorRouteKey)
+		routeKeys, ok := values.([]*options.ActorRouteKey)
+		if !ok {
+			continue
+		}
+		for _, routeKey := range routeKeys {
+			if routeKey.GetActor() == "" || routeKey.GetField() == "" {
+				continue
+			}
+			routeKeyFields[routeKey.GetActor()] = routeKey.GetField()
+		}
+	}
+
+	return routeKeyFields
+}
+
 func getServiceStringOption(service *protogen.Service, extension protoreflect.ExtensionType, defaultValue string) string {
 	value := proto.GetExtension(service.Desc.Options(), extension)
 	if s, ok := value.(string); ok && s != "" {
@@ -216,10 +246,11 @@ func buildActorDescs(services []*serviceDesc) ([]*actorDesc, error) {
 		actor := actorsByName[actorName]
 		if actor == nil {
 			actor = &actorDesc{
-				Name:     toCamel(actorName),
-				Actor:    actorName,
-				Kind:     service.Kind,
-				NodeType: service.NodeType,
+				Name:          toCamel(actorName),
+				Actor:         actorName,
+				Kind:          service.Kind,
+				NodeType:      service.NodeType,
+				RouteKeyField: service.RouteKeyField,
 			}
 			actorsByName[actorName] = actor
 		}
@@ -228,6 +259,9 @@ func buildActorDescs(services []*serviceDesc) ([]*actorDesc, error) {
 		}
 		if actor.NodeType != service.NodeType {
 			return nil, fmt.Errorf("actor %q uses multiple node types: %q and %q", actorName, actor.NodeType, service.NodeType)
+		}
+		if actor.RouteKeyField != service.RouteKeyField {
+			return nil, fmt.Errorf("actor %q uses multiple route key fields: %q and %q", actorName, actor.RouteKeyField, service.RouteKeyField)
 		}
 		for _, existingService := range actor.Services {
 			for _, existingMethod := range existingService.Methods {
@@ -298,12 +332,20 @@ func toCamel(s string) string {
 		if s == strings.ToUpper(s) {
 			s = strings.ToLower(s)
 		}
-		return noLowerCaser.String(s)
+		return goInitialism(noLowerCaser.String(s))
 	}
 
 	slice := strings.Split(s, "_")
 	for i := 0; i < len(slice); i++ {
-		slice[i] = caser.String(slice[i])
+		slice[i] = goInitialism(caser.String(slice[i]))
 	}
 	return strings.Join(slice, "")
+}
+
+func goInitialism(s string) string {
+	if strings.EqualFold(s, "id") {
+		return "ID"
+	}
+
+	return s
 }

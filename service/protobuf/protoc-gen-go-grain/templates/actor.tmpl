@@ -7,6 +7,36 @@ type {{ .Name }}Actor interface {
 type {{ lowerFirst .Name }}Handler struct {
 	handler {{ .Name }}Actor
 }
+{{ if .RouteKeyField }}
+type {{ lowerFirst .Actor }}{{ toCamel .RouteKeyField }}Key struct{}
+
+// With{{ toCamel .RouteKeyField }}Key routes {{ .Actor }} actor calls by {{ .RouteKeyField }}.
+func With{{ toCamel .RouteKeyField }}Key({{ lowerFirst (toCamel .RouteKeyField) }} uint64) cluster.GrainCallOption {
+	return cluster.WithRouteKey({{ lowerFirst (toCamel .RouteKeyField) }})
+}
+
+// Get{{ toCamel .RouteKeyField }}Key returns the {{ .RouteKeyField }} route key from ctx.
+func Get{{ toCamel .RouteKeyField }}Key(ctx context.Context) (uint64, error) {
+	{{ lowerFirst (toCamel .RouteKeyField) }}, ok := ctx.Value({{ lowerFirst .Actor }}{{ toCamel .RouteKeyField }}Key{}).(uint64)
+	if !ok {
+		return 0, fmt.Errorf("missing route key {{ .RouteKeyField }}")
+	}
+
+	return {{ lowerFirst (toCamel .RouteKeyField) }}, nil
+}
+
+func routeKeyFrom{{ toCamel .RouteKeyField }}Options(opts []cluster.GrainCallOption) (uint64, error) {
+	config := &cluster.GrainCallConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+	if !config.HasRouteKey {
+		return 0, fmt.Errorf("missing route key option With{{ toCamel .RouteKeyField }}Key")
+	}
+
+	return config.RouteKey, nil
+}
+{{ end }}
 
 func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *cluster.GrainRequest) (proto.Message, error) {
 	switch req.MethodIndex {
@@ -19,7 +49,15 @@ func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *clu
 					"argument": msg.String(),
 				})
 		}
+		{{- if .Service.RouteKeyField }}
+		if !req.HasRouteKey {
+			return nil, fmt.Errorf("missing route key {{ .Service.RouteKeyField }}")
+		}
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue({{ lowerFirst .Service.Actor }}{{ toCamel .Service.RouteKeyField }}Key{}, req.RouteKey))
+		return h.handler.{{ .Method.Name }}(handlerCtx, msg)
+		{{- else }}
 		return h.handler.{{ .Method.Name }}(ctx, msg)
+		{{- end }}
 {{- end }}
 	default:
 		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))
