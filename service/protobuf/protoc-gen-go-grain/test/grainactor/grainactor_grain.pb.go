@@ -65,7 +65,8 @@ func (g *CrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleRequest, 
 }
 
 func (g *CrossSnsGrainClient) RoleSimpleByRouteKey(identity string, routeKey uint64, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
-	return g.RoleSimpleWithPlacement(&cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}, identity, r, opts...)
+	placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}
+	return g.RoleSimpleWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
 }
 
 func (g *CrossSnsGrainClient) RoleSimpleWithPlacement(placementContext *cluster.PlacementContext, identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
@@ -77,10 +78,22 @@ func (g *CrossSnsGrainClient) RoleSimpleWithPlacement(placementContext *cluster.
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}
-	if placementContext != nil {
-		reqMsg.RouteKey = placementContext.RouteKey
-		reqMsg.HasRouteKey = true
+	return g.RoleSimpleRequest(placementContext, reqMsg, identity, opts...)
+
+}
+func (g *CrossSnsGrainClient) RoleSimpleWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "CrossSns"), slog.String("method", "RoleSimple"), slog.Any("request", r))
 	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes, RouteKey: routeKey, HasRouteKey: true}
+	return g.RoleSimpleRequest(placementContext, reqMsg, identity, opts...)
+}
+
+func (g *CrossSnsGrainClient) RoleSimpleRequest(placementContext *cluster.PlacementContext, reqMsg *cluster.GrainRequest, identity string, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
@@ -108,7 +121,8 @@ func (g *CrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, op
 }
 
 func (g *CrossSnsGrainClient) KeepaliveByRouteKey(identity string, routeKey uint64, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
-	return g.KeepaliveWithPlacement(&cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}, identity, r, opts...)
+	placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}
+	return g.KeepaliveWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
 }
 
 func (g *CrossSnsGrainClient) KeepaliveWithPlacement(placementContext *cluster.PlacementContext, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
@@ -120,10 +134,22 @@ func (g *CrossSnsGrainClient) KeepaliveWithPlacement(placementContext *cluster.P
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
-	if placementContext != nil {
-		reqMsg.RouteKey = placementContext.RouteKey
-		reqMsg.HasRouteKey = true
+	return g.KeepaliveRequest(placementContext, reqMsg, identity, opts...)
+
+}
+func (g *CrossSnsGrainClient) KeepaliveWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "CrossSns"), slog.String("method", "Keepalive"), slog.Any("request", r))
 	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes, RouteKey: routeKey, HasRouteKey: true}
+	return g.KeepaliveRequest(placementContext, reqMsg, identity, opts...)
+}
+
+func (g *CrossSnsGrainClient) KeepaliveRequest(placementContext *cluster.PlacementContext, reqMsg *cluster.GrainRequest, identity string, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
@@ -188,7 +214,8 @@ func (g *CrossMailGrainClient) LoadMail(identity string, r *LoadMailRequest, opt
 }
 
 func (g *CrossMailGrainClient) LoadMailByRouteKey(identity string, routeKey uint64, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
-	return g.LoadMailWithPlacement(&cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}, identity, r, opts...)
+	placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}
+	return g.LoadMailWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
 }
 
 func (g *CrossMailGrainClient) LoadMailWithPlacement(placementContext *cluster.PlacementContext, identity string, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
@@ -200,10 +227,22 @@ func (g *CrossMailGrainClient) LoadMailWithPlacement(placementContext *cluster.P
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 2, MessageData: bytes}
-	if placementContext != nil {
-		reqMsg.RouteKey = placementContext.RouteKey
-		reqMsg.HasRouteKey = true
+	return g.LoadMailRequest(placementContext, reqMsg, identity, opts...)
+
+}
+func (g *CrossMailGrainClient) LoadMailWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "CrossMail"), slog.String("method", "LoadMail"), slog.Any("request", r))
 	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: 2, MessageData: bytes, RouteKey: routeKey, HasRouteKey: true}
+	return g.LoadMailRequest(placementContext, reqMsg, identity, opts...)
+}
+
+func (g *CrossMailGrainClient) LoadMailRequest(placementContext *cluster.PlacementContext, reqMsg *cluster.GrainRequest, identity string, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
 	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossMail, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)

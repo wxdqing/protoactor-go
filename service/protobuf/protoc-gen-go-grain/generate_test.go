@@ -363,6 +363,65 @@ func TestGrainactorTemplateGeneratesRouteKeyOption(t *testing.T) {
 	requireContains(t, got, "return g.RoleSimpleByRouteKey(identity, routeKey, r, opts...)")
 }
 
+func TestGrainactorTemplateGeneratesRouteKeyFuture(t *testing.T) {
+	desc := &serviceDesc{
+		Name:                  "CrossSns",
+		ClusterImportPath:     serviceClusterImportPath,
+		ClusterImportPathName: "cluster",
+		UsePlacementContext:   true,
+		Kind:                  "player_equip",
+		NodeType:              "game",
+		Actor:                 "player",
+		RouteKeyField:         "server_id",
+		UseGrainactor:         true,
+		Methods: []*methodDesc{
+			{
+				Name:    "Keepalive",
+				Input:   "KeepaliveRequest",
+				Output:  "KeepaliveResponse",
+				Index:   0,
+				Options: &options.MethodOptions{Future: true},
+			},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "func (g *CrossSnsGrainClient) KeepaliveFuture(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (actor.Future, error)")
+	requireContains(t, got, "routeKey, err := routeKeyFromServerIDOptions(opts)")
+	requireContains(t, got, `placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}`)
+	requireContains(t, got, "reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes, RouteKey: routeKey, HasRouteKey: true}")
+	requireContains(t, got, "g.cluster.RequestFuture(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)")
+}
+
+func TestGrainactorTemplateDoesNotMarkRouteKeyPresentForPlacementOnly(t *testing.T) {
+	desc := &serviceDesc{
+		Name:                  "CrossSns",
+		ClusterImportPath:     serviceClusterImportPath,
+		ClusterImportPathName: "cluster",
+		UsePlacementContext:   true,
+		Kind:                  "player_equip",
+		NodeType:              "game",
+		Actor:                 "player",
+		RouteKeyField:         "server_id",
+		UseGrainactor:         true,
+		Methods: []*methodDesc{
+			{
+				Name:    "RoleSimple",
+				Input:   "RoleSimpleRequest",
+				Output:  "RoleSimpleResponse",
+				Index:   0,
+				Options: &options.MethodOptions{},
+			},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}")
+	requireNotContains(t, got, "if placementContext != nil {\n\t\treqMsg.RouteKey = placementContext.RouteKey")
+}
+
 func TestBuildActorDescsRejectsDuplicateMethodNames(t *testing.T) {
 	_, err := buildActorDescs([]*serviceDesc{
 		{
