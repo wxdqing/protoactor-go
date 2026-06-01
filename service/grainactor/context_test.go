@@ -28,3 +28,22 @@ func TestContextCarriesActorMetadataAndState(t *testing.T) {
 		t.Fatalf("State() = %#v, %v", gotState, ok)
 	}
 }
+
+func TestToContextCarriesActorMetadataAndValues(t *testing.T) {
+	state := &struct{ Count int }{}
+	actorCtx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state)
+	key := struct{}{}
+
+	ctx := ToContext(actorCtx, WithValue(key, uint64(42)))
+
+	if FromContext(ctx) != actorCtx {
+		t.Fatal("FromContext() did not return original actor context")
+	}
+	gotState, ok := State[*struct{ Count int }](ctx)
+	if !ok || gotState != state {
+		t.Fatalf("State() = %#v, %v", gotState, ok)
+	}
+	if got := ctx.Value(key); got != uint64(42) {
+		t.Fatalf("Value() = %#v, want 42", got)
+	}
+}

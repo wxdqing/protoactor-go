@@ -8,6 +8,9 @@ import (
 
 type contextKey struct{}
 
+// ToContextOption customizes a handler context converted from a grain actor context.
+type ToContextOption func(context.Context) context.Context
+
 // Context carries grain actor metadata for generated service handlers.
 type Context interface {
 	context.Context
@@ -50,6 +53,22 @@ func FromContext(ctx context.Context) Context {
 		return actorCtx
 	}
 	return nil
+}
+
+// ToContext converts a grain actor context into the context passed to service handlers.
+func ToContext(ctx Context, opts ...ToContextOption) context.Context {
+	var handlerCtx context.Context = ctx
+	for _, opt := range opts {
+		handlerCtx = opt(handlerCtx)
+	}
+	return handlerCtx
+}
+
+// WithValue adds a value to a converted handler context.
+func WithValue(key any, value any) ToContextOption {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, key, value)
+	}
 }
 
 // State returns the typed actor state stored in ctx.

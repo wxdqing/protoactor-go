@@ -11,6 +11,8 @@ type GrainCallConfig struct {
 	Timeout     time.Duration
 	RetryAction func(n int) int
 	Context     actor.SenderContext
+	RouteKey    uint64
+	HasRouteKey bool
 }
 
 type GrainCallOption func(config *GrainCallConfig)
@@ -59,6 +61,14 @@ func WithRetryAction(act func(i int) int) GrainCallOption {
 func WithContext(ctx actor.SenderContext) GrainCallOption {
 	return func(config *GrainCallConfig) {
 		config.Context = ctx
+	}
+}
+
+// WithRouteKey routes a grain call by the given route key.
+func WithRouteKey(routeKey uint64) GrainCallOption {
+	return func(config *GrainCallConfig) {
+		config.RouteKey = routeKey
+		config.HasRouteKey = true
 	}
 }
 

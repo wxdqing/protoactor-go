@@ -6,6 +6,8 @@ message GrainRequest {
   int32 method_index = 1;
   bytes message_data = 2;
   string message_type_name = 3;
+  uint64 route_key = 4;
+  bool has_route_key = 5;
 }
 
 message GrainResponse {
