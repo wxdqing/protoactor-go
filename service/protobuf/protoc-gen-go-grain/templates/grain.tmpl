@@ -1,4 +1,8 @@
 {{ $service := . }}
+const ActorKindName{{ $service.Name }} = "{{ $service.Kind }}"
+const ActorNodeType{{ $service.Name }} = "{{ $service.NodeType }}"
+const ActorGroupName{{ $service.Name }} = "{{ $service.Actor }}"
+
 var x{{ $service.Name }}Factory func() {{ $service.Name }}
 
 // {{ $service.Name }}Factory produces a {{ $service.Name }}
@@ -18,17 +22,20 @@ func Get{{ $service.Name }}GrainClient(c *cluster.Cluster, id string) *{{ $servi
 }
 
 // Get{{ $service.Name }}Kind instantiates a new cluster.Kind for {{ $service.Name }}
+{{ if not $service.UseGrainactor -}}
 func Get{{ $service.Name }}Kind(opts ...actor.PropsOption) *cluster.Kind {
 	props := actor.PropsFromProducer(func() actor.Actor {
 		return &{{ $service.Name }}Actor{
 			Timeout: 60 * time.Second,
 		}
 	}, opts...)
-	kind := cluster.NewKind("{{ $service.Name }}", props)
+	kind := cluster.NewKind(ActorKindName{{ $service.Name }}, props)
 	return kind
 }
+{{ end }}
 
 // Get{{ $service.Name }}Kind instantiates a new cluster.Kind for {{ $service.Name }}
+{{ if not $service.UseGrainactor -}}
 func New{{ $service.Name }}Kind(factory func() {{ $service.Name }}, timeout time.Duration, opts ...actor.PropsOption) *cluster.Kind {
 	x{{ $service.Name }}Factory = factory
 	props := actor.PropsFromProducer(func() actor.Actor {
@@ -36,20 +43,31 @@ func New{{ $service.Name }}Kind(factory func() {{ $service.Name }}, timeout time
 			Timeout: timeout,
 		}
 	}, opts...)
-	kind := cluster.NewKind("{{ $service.Name }}", props)
+	kind := cluster.NewKind(ActorKindName{{ $service.Name }}, props)
 	return kind
 }
+{{ end }}
 
 // {{ $service.Name }} interfaces the services available to the {{ $service.Name }}
 type {{ $service.Name }} interface {
+	{{- if not $service.UseGrainactor }}
 	Init(ctx cluster.GrainContext)
 	Terminate(ctx cluster.GrainContext)
 	ReceiveDefault(ctx cluster.GrainContext)
+	{{- end }}
 	{{- range $method := .Methods }}
 	{{ if $method.Options.Reenterable -}}
+	{{- if $service.UseGrainactor }}
+	{{ $method.Name }}(ctx context.Context, req *{{ $method.Input }}, respond func(*{{ $method.Output }}), onError func(error)) error
+	{{- else }}
 	{{ $method.Name }}(req *{{ $method.Input }}, respond func(*{{ $method.Output }}), onError func(error), ctx cluster.GrainContext) error
+	{{- end }}
 	{{- else -}}
+	{{- if $service.UseGrainactor }}
+	{{ $method.Name }}(ctx context.Context, req *{{ $method.Input }}) (*{{ $method.Output }}, error)
+	{{- else }}
 	{{ $method.Name }}(req *{{ $method.Input }}, ctx cluster.GrainContext) (*{{ $method.Output }}, error)
+	{{- end }}
 	{{- end }}
 	{{- end}}
 }
@@ -74,7 +92,7 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Future(r *{{ $method.
 
 	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes}
 	{{ if $service.UsePlacementContext -}}
-        f, err := g.cluster.RequestFuture(placementContext, g.Identity, "{{ $service.Name }}", reqMsg, opts...)
+        f, err := g.cluster.RequestFuture(placementContext, g.Identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
 	{{- else -}}
         f, err := g.cluster.RequestFuture(g.Identity, "{{ $service.Name }}", reqMsg, opts...)
 	{{- end }}
@@ -86,7 +104,21 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Future(r *{{ $method.
 }
 {{ end }}
 // {{ $method.Name }} requests the execution on to the cluster with CallOptions
-{{ if $service.UsePlacementContext -}}
+{{ if $service.UseGrainactor -}}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
+	var placementContext *cluster.PlacementContext
+	{{- if $service.NodeType }}
+	placementContext = &cluster.PlacementContext{NodeType: "{{ $service.NodeType }}"}
+	{{- end }}
+	return g.{{ $method.Name }}WithPlacement(placementContext, identity, r, opts...)
+}
+
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}ByRouteKey(identity string, routeKey uint64, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
+	return g.{{ $method.Name }}WithPlacement(&cluster.PlacementContext{NodeType: "{{ $service.NodeType }}", RouteKey: routeKey}, identity, r, opts...)
+}
+
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}WithPlacement(placementContext *cluster.PlacementContext, identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
+{{- else if $service.UsePlacementContext -}}
 func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(placementContext *cluster.PlacementContext, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
 {{- else -}}
 func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
@@ -99,8 +131,10 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(r *{{ $method.Input 
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes}
-	{{ if $service.UsePlacementContext -}}
-	resp, err := g.cluster.Request(placementContext, g.Identity, "{{ $service.Name }}", reqMsg, opts...)
+	{{ if $service.UseGrainactor -}}
+	resp, err := g.cluster.Request(placementContext, identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
+	{{- else if $service.UsePlacementContext -}}
+	resp, err := g.cluster.Request(placementContext, g.Identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
 	{{- else -}}
 	resp, err := g.cluster.Request(g.Identity, "{{ $service.Name }}", reqMsg, opts...)
 	{{- end }}
@@ -120,6 +154,7 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(r *{{ $method.Input 
 	}
 }
 {{ end }}
+{{ if not $service.UseGrainactor -}}
 // {{ $service.Name }}Actor represents the actor structure
 type {{ $service.Name }}Actor struct {
 	ctx     cluster.GrainContext
@@ -187,3 +222,4 @@ func (a *{{ $service.Name }}Actor) onError(err error) {
 	resp := cluster.FromError(err)
 	a.ctx.Respond(resp)
 }
+{{ end -}}

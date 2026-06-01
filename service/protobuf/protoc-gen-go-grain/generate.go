@@ -4,6 +4,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/options"
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/text/language"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
@@ -29,12 +31,14 @@ const (
 	legacyClusterImportPath  = "github.com/asynkron/protoactor-go/cluster"
 	serviceClusterImportPath = "github.com/asynkron/protoactor-go/service/cluster"
 
-	timePackage   = protogen.GoImportPath("time")
-	errorsPackage = protogen.GoImportPath("errors")
-	fmtPackage    = protogen.GoImportPath("fmt")
-	slogPackage   = protogen.GoImportPath("log/slog")
-	protoPackage  = protogen.GoImportPath("google.golang.org/protobuf/proto")
-	actorPackage  = protogen.GoImportPath("github.com/asynkron/protoactor-go/actor")
+	timePackage       = protogen.GoImportPath("time")
+	contextPackage    = protogen.GoImportPath("context")
+	errorsPackage     = protogen.GoImportPath("errors")
+	fmtPackage        = protogen.GoImportPath("fmt")
+	slogPackage       = protogen.GoImportPath("log/slog")
+	protoPackage      = protogen.GoImportPath("google.golang.org/protobuf/proto")
+	actorPackage      = protogen.GoImportPath("github.com/asynkron/protoactor-go/actor")
+	grainactorPackage = protogen.GoImportPath("github.com/asynkron/protoactor-go/service/grainactor")
 )
 
 var (
@@ -93,20 +97,55 @@ func generateContent(g *protogen.GeneratedFile, file *protogen.File) {
 		return
 	}
 
+	services := make([]*serviceDesc, 0, len(file.Services))
+	usesGrainactor := false
+	usesLegacyActor := false
+	for _, service := range file.Services {
+		sd := buildServiceDesc(service, g)
+		if len(sd.Methods) != 0 {
+			services = append(services, sd)
+			usesGrainactor = usesGrainactor || sd.UseGrainactor
+			usesLegacyActor = usesLegacyActor || !sd.UseGrainactor
+		}
+	}
+
 	g.QualifiedGoIdent(actorPackage.Ident(""))
+	if usesGrainactor {
+		g.QualifiedGoIdent(contextPackage.Ident(""))
+		g.QualifiedGoIdent(grainactorPackage.Ident(""))
+	}
 	g.QualifiedGoIdent(protoPackage.Ident(""))
-	g.QualifiedGoIdent(timePackage.Ident(""))
+	if usesLegacyActor {
+		g.QualifiedGoIdent(timePackage.Ident(""))
+	}
 	g.QualifiedGoIdent(slogPackage.Ident(""))
 
-	for _, service := range file.Services {
-		generateService(service, g)
+	grainactorServices := make([]*serviceDesc, 0, len(services))
+	for _, service := range services {
+		if service.UseGrainactor {
+			grainactorServices = append(grainactorServices, service)
+		}
+	}
+
+	actors, err := buildActorDescs(grainactorServices)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, service := range services {
+		g.P(service.execute())
+		g.P()
+	}
+
+	for _, actor := range actors {
+		g.P(actor.execute())
 		g.P()
 	}
 
 	generateRespond(g)
 }
 
-func generateService(service *protogen.Service, g *protogen.GeneratedFile) {
+func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile) *serviceDesc {
 	if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
 		g.P("//")
 		g.P(deprecationComment)
@@ -117,6 +156,10 @@ func generateService(service *protogen.Service, g *protogen.GeneratedFile) {
 		ClusterImportPath:     clusterImportPath,
 		ClusterImportPathName: "cluster",
 		UsePlacementContext:   clusterImportPath == serviceClusterImportPath,
+		Kind:                  getServiceStringOption(service, options.E_Kind, service.GoName),
+		NodeType:              getServiceStringOption(service, options.E_NodeType, ""),
+		Actor:                 getServiceStringOption(service, options.E_Actor, service.GoName),
+		UseGrainactor:         hasServiceOption(service, options.E_Kind) || hasServiceOption(service, options.E_NodeType) || hasServiceOption(service, options.E_Actor),
 	}
 
 	for i, method := range service.Methods {
@@ -144,9 +187,80 @@ func generateService(service *protogen.Service, g *protogen.GeneratedFile) {
 		sd.Methods = append(sd.Methods, md)
 	}
 
-	if len(sd.Methods) != 0 {
-		g.P(sd.execute())
+	return sd
+}
+
+func getServiceStringOption(service *protogen.Service, extension protoreflect.ExtensionType, defaultValue string) string {
+	value := proto.GetExtension(service.Desc.Options(), extension)
+	if s, ok := value.(string); ok && s != "" {
+		return s
 	}
+
+	return defaultValue
+}
+
+func hasServiceOption(service *protogen.Service, extension protoreflect.ExtensionType) bool {
+	return proto.HasExtension(service.Desc.Options(), extension)
+}
+
+func buildActorDescs(services []*serviceDesc) ([]*actorDesc, error) {
+	actorsByName := make(map[string]*actorDesc)
+	for _, service := range services {
+		if service.Kind == "" {
+			return nil, fmt.Errorf("service %q resolved empty kind", service.Name)
+		}
+		actorName := service.Actor
+		if actorName == "" {
+			actorName = service.Name
+		}
+		actor := actorsByName[actorName]
+		if actor == nil {
+			actor = &actorDesc{
+				Name:     toCamel(actorName),
+				Actor:    actorName,
+				Kind:     service.Kind,
+				NodeType: service.NodeType,
+			}
+			actorsByName[actorName] = actor
+		}
+		if actor.Kind != service.Kind {
+			return nil, fmt.Errorf("actor %q uses multiple kinds: %q and %q", actorName, actor.Kind, service.Kind)
+		}
+		if actor.NodeType != service.NodeType {
+			return nil, fmt.Errorf("actor %q uses multiple node types: %q and %q", actorName, actor.NodeType, service.NodeType)
+		}
+		for _, existingService := range actor.Services {
+			for _, existingMethod := range existingService.Methods {
+				for _, method := range service.Methods {
+					if existingMethod.Name == method.Name {
+						return nil, fmt.Errorf("actor %q has duplicate method %q", actorName, method.Name)
+					}
+				}
+			}
+		}
+		for _, method := range service.Methods {
+			method.Index = len(actor.Methods)
+			actor.Methods = append(actor.Methods, &actorMethodDesc{
+				Service: service,
+				Method:  method,
+				Index:   method.Index,
+			})
+		}
+		actor.Services = append(actor.Services, service)
+	}
+
+	names := make([]string, 0, len(actorsByName))
+	for name := range actorsByName {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	actors := make([]*actorDesc, 0, len(names))
+	for _, name := range names {
+		actors = append(actors, actorsByName[name])
+	}
+
+	return actors, nil
 }
 
 func generateRespond(g *protogen.GeneratedFile) {

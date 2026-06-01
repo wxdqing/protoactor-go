@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package grainactor;
+
+import "service/protobuf/protoc-gen-go-grain/options/options.proto";
+
+option go_package = "github.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/test/grainactor";
+
+message RoleSimpleRequest {
+  uint64 role_id = 1;
+}
+
+message RoleSimpleResponse {
+  string message = 1;
+}
+
+message KeepaliveRequest {
+  uint64 role_id = 1;
+}
+
+message KeepaliveResponse {
+  int64 server_time = 1;
+}
+
+message LoadMailRequest {
+  uint64 role_id = 1;
+}
+
+message LoadMailResponse {
+  int32 count = 1;
+}
+
+service CrossSns {
+  option (options.kind) = "player_equip";
+  option (options.node_type) = "game";
+  option (options.actor) = "player";
+
+  rpc RoleSimple(RoleSimpleRequest) returns (RoleSimpleResponse) {}
+  rpc Keepalive(KeepaliveRequest) returns (KeepaliveResponse) {}
+}
+
+service CrossMail {
+  option (options.kind) = "player_equip";
+  option (options.node_type) = "game";
+  option (options.actor) = "player";
+
+  rpc LoadMail(LoadMailRequest) returns (LoadMailResponse) {}
+}

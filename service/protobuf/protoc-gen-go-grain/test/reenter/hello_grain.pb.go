@@ -15,6 +15,10 @@ import (
 	time "time"
 )
 
+const ActorKindNameHello = "Hello"
+const ActorNodeTypeHello = ""
+const ActorGroupNameHello = "Hello"
+
 var xHelloFactory func() Hello
 
 // HelloFactory produces a Hello
@@ -40,7 +44,7 @@ func GetHelloKind(opts ...actor.PropsOption) *cluster.Kind {
 			Timeout: 60 * time.Second,
 		}
 	}, opts...)
-	kind := cluster.NewKind("Hello", props)
+	kind := cluster.NewKind(ActorKindNameHello, props)
 	return kind
 }
 
@@ -52,7 +56,7 @@ func NewHelloKind(factory func() Hello, timeout time.Duration, opts ...actor.Pro
 			Timeout: timeout,
 		}
 	}, opts...)
-	kind := cluster.NewKind("Hello", props)
+	kind := cluster.NewKind(ActorKindNameHello, props)
 	return kind
 }
 
@@ -61,7 +65,9 @@ type Hello interface {
 	Init(ctx cluster.GrainContext)
 	Terminate(ctx cluster.GrainContext)
 	ReceiveDefault(ctx cluster.GrainContext)
+
 	SayHello(req *SayHelloRequest, respond func(*SayHelloResponse), onError func(error), ctx cluster.GrainContext) error
+
 	Dowork(req *DoworkRequest, ctx cluster.GrainContext) (*DoworkResponse, error)
 }
 
@@ -81,7 +87,7 @@ func (g *HelloGrainClient) SayHello(placementContext *cluster.PlacementContext, 
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}
-	resp, err := g.cluster.Request(placementContext, g.Identity, "Hello", reqMsg, opts...)
+	resp, err := g.cluster.Request(placementContext, g.Identity, ActorKindNameHello, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
 	}
@@ -106,7 +112,7 @@ func (g *HelloGrainClient) DoworkFuture(placementContext *cluster.PlacementConte
 	}
 
 	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
-	f, err := g.cluster.RequestFuture(placementContext, g.Identity, "Hello", reqMsg, opts...)
+	f, err := g.cluster.RequestFuture(placementContext, g.Identity, ActorKindNameHello, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request future: %w", err)
 	}
@@ -124,7 +130,7 @@ func (g *HelloGrainClient) Dowork(placementContext *cluster.PlacementContext, r 
 		return nil, err
 	}
 	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
-	resp, err := g.cluster.Request(placementContext, g.Identity, "Hello", reqMsg, opts...)
+	resp, err := g.cluster.Request(placementContext, g.Identity, ActorKindNameHello, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request: %w", err)
 	}

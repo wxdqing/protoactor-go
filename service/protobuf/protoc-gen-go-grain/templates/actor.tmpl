@@ -1,0 +1,41 @@
+type {{ .Name }}Actor interface {
+{{- range .Services }}
+	{{ .Name }}
+{{- end }}
+}
+
+type {{ lowerFirst .Name }}Handler struct {
+	handler {{ .Name }}Actor
+}
+
+func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *cluster.GrainRequest) (proto.Message, error) {
+	switch req.MethodIndex {
+{{- range .Methods }}
+	case {{ .Index }}:
+		msg := &{{ .Method.Input }}{}
+		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
+			return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
+				WithMetadata(map[string]string{
+					"argument": msg.String(),
+				})
+		}
+		return h.handler.{{ .Method.Name }}(ctx, msg)
+{{- end }}
+	default:
+		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))
+	}
+}
+
+func New{{ .Name }}BaseActor(handler {{ .Name }}Actor, state any, opts ...grainactor.Option) actor.Actor {
+	if state != nil {
+		opts = append(opts, grainactor.WithState(state))
+	}
+	return grainactor.NewBaseActor("{{ .Actor }}", "{{ .Kind }}", &{{ lowerFirst .Name }}Handler{handler: handler}, opts...)
+}
+
+func New{{ .Name }}Kind(handler {{ .Name }}Actor, state any, opts ...actor.PropsOption) *cluster.Kind {
+	props := actor.PropsFromProducer(func() actor.Actor {
+		return New{{ .Name }}BaseActor(handler, state)
+	}, opts...)
+	return cluster.NewKind("{{ .Kind }}", props)
+}

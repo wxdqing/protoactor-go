@@ -17,3 +17,9 @@ message MethodOptions {
 extend google.protobuf.MethodOptions {
   MethodOptions method_options = 50000;
 }
+
+extend google.protobuf.ServiceOptions {
+  string kind = 50001;
+  string node_type = 50002;
+  string actor = 50003;
+}
