@@ -363,6 +363,49 @@ func TestGrainactorTemplateGeneratesRouteKeyOption(t *testing.T) {
 	requireContains(t, got, "return g.RoleSimpleByRouteKey(identity, routeKey, r, opts...)")
 }
 
+func TestGrainactorTemplateGeneratesBaseClient(t *testing.T) {
+	desc := &serviceDesc{
+		Name:                  "CrossSns",
+		ClusterImportPath:     serviceClusterImportPath,
+		ClusterImportPathName: "cluster",
+		UsePlacementContext:   true,
+		Kind:                  "player_equip",
+		NodeType:              "game",
+		Actor:                 "player",
+		RouteKeyField:         "server_id",
+		UseGrainactor:         true,
+		Methods: []*methodDesc{
+			{
+				Name:    "RoleSimple",
+				Input:   "RoleSimpleRequest",
+				Output:  "RoleSimpleResponse",
+				Index:   0,
+				Options: &options.MethodOptions{},
+			},
+			{
+				Name:    "Keepalive",
+				Input:   "KeepaliveRequest",
+				Output:  "KeepaliveResponse",
+				Index:   1,
+				Options: &options.MethodOptions{Future: true},
+			},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "type BaseCrossSnsGrainClient struct {")
+	requireContains(t, got, "ClusterFn func() *cluster.Cluster")
+	requireContains(t, got, "Opts      []cluster.GrainCallOption")
+	requireContains(t, got, "func NewBaseCrossSnsGrainClient(c func() *cluster.Cluster, opts ...cluster.GrainCallOption) *BaseCrossSnsGrainClient")
+	requireContains(t, got, "func (h *BaseCrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error)")
+	requireContains(t, got, "cli := GetCrossSnsGrainClient(h.ClusterFn(), identity)")
+	requireContains(t, got, "return cli.RoleSimple(identity, r, h.mergeOpts(opts)...)")
+	requireContains(t, got, "func (h *BaseCrossSnsGrainClient) KeepaliveFuture(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (actor.Future, error)")
+	requireContains(t, got, "return cli.KeepaliveFuture(identity, r, h.mergeOpts(opts)...)")
+	requireContains(t, got, "func (h *BaseCrossSnsGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption")
+}
+
 func TestGrainactorTemplateGeneratesRouteKeyFuture(t *testing.T) {
 	desc := &serviceDesc{
 		Name:                  "CrossSns",

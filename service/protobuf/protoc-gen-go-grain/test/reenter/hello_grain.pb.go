@@ -112,6 +112,7 @@ func (g *HelloGrainClient) DoworkFuture(placementContext *cluster.PlacementConte
 	}
 
 	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
+
 	f, err := g.cluster.RequestFuture(placementContext, g.Identity, ActorKindNameHello, reqMsg, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error request future: %w", err)

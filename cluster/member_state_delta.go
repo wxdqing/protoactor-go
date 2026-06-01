@@ -2,6 +2,7 @@
 
 package cluster
 
+// MemberStateDelta describes a member state update that should be applied to gossip state.
 type MemberStateDelta struct {
 	TargetMemberID string
 	HasState       bool

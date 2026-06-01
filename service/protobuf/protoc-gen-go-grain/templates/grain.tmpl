@@ -77,6 +77,43 @@ type {{ $service.Name }}GrainClient struct {
 	Identity string
 	cluster  *cluster.Cluster
 }
+{{ if $service.UseGrainactor }}
+// Base{{ $service.Name }}GrainClient provides shared cluster access and default call options for {{ $service.Name }} grains.
+type Base{{ $service.Name }}GrainClient struct {
+	ClusterFn func() *cluster.Cluster
+	Opts      []cluster.GrainCallOption
+}
+
+// NewBase{{ $service.Name }}GrainClient creates a Base{{ $service.Name }}GrainClient with default call options.
+func NewBase{{ $service.Name }}GrainClient(c func() *cluster.Cluster, opts ...cluster.GrainCallOption) *Base{{ $service.Name }}GrainClient {
+	return &Base{{ $service.Name }}GrainClient{ClusterFn: c, Opts: opts}
+}
+
+{{ range $method := .Methods}}
+{{ if $method.Options.Future -}}
+// {{ $method.Name }}Future returns a future for the execution of {{ $method.Name }} on the cluster.
+func (h *Base{{ $service.Name }}GrainClient) {{ $method.Name }}Future(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (actor.Future, error) {
+	cli := Get{{ $service.Name }}GrainClient(h.ClusterFn(), identity)
+	return cli.{{ $method.Name }}Future(identity, r, h.mergeOpts(opts)...)
+}
+{{ end }}
+// {{ $method.Name }} requests the execution on the cluster.
+func (h *Base{{ $service.Name }}GrainClient) {{ $method.Name }}(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
+	cli := Get{{ $service.Name }}GrainClient(h.ClusterFn(), identity)
+	return cli.{{ $method.Name }}(identity, r, h.mergeOpts(opts)...)
+}
+{{ end }}
+
+func (h *Base{{ $service.Name }}GrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
+	if len(h.Opts) == 0 {
+		return opts
+	}
+	merged := make([]cluster.GrainCallOption, 0, len(h.Opts)+len(opts))
+	merged = append(merged, h.Opts...)
+	merged = append(merged, opts...)
+	return merged
+}
+{{ end }}
 {{ range $method := .Methods}}
 {{ if $method.Options.Future -}}
 // {{ $method.Name }}Future return a future for the execution of {{ $method.Name }} on the cluster

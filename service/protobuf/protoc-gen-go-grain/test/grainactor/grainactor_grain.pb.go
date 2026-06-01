@@ -55,6 +55,39 @@ type CrossSnsGrainClient struct {
 	cluster  *cluster.Cluster
 }
 
+// BaseCrossSnsGrainClient provides shared cluster access and default call options for CrossSns grains.
+type BaseCrossSnsGrainClient struct {
+	ClusterFn func() *cluster.Cluster
+	Opts      []cluster.GrainCallOption
+}
+
+// NewBaseCrossSnsGrainClient creates a BaseCrossSnsGrainClient with default call options.
+func NewBaseCrossSnsGrainClient(c func() *cluster.Cluster, opts ...cluster.GrainCallOption) *BaseCrossSnsGrainClient {
+	return &BaseCrossSnsGrainClient{ClusterFn: c, Opts: opts}
+}
+
+// RoleSimple requests the execution on the cluster.
+func (h *BaseCrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
+	cli := GetCrossSnsGrainClient(h.ClusterFn(), identity)
+	return cli.RoleSimple(identity, r, h.mergeOpts(opts)...)
+}
+
+// Keepalive requests the execution on the cluster.
+func (h *BaseCrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+	cli := GetCrossSnsGrainClient(h.ClusterFn(), identity)
+	return cli.Keepalive(identity, r, h.mergeOpts(opts)...)
+}
+
+func (h *BaseCrossSnsGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
+	if len(h.Opts) == 0 {
+		return opts
+	}
+	merged := make([]cluster.GrainCallOption, 0, len(h.Opts)+len(opts))
+	merged = append(merged, h.Opts...)
+	merged = append(merged, opts...)
+	return merged
+}
+
 // RoleSimple requests the execution on to the cluster with CallOptions
 func (g *CrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleRequest, opts ...cluster.GrainCallOption) (*RoleSimpleResponse, error) {
 	routeKey, err := routeKeyFromServerIDOptions(opts)
@@ -202,6 +235,33 @@ type CrossMail interface {
 type CrossMailGrainClient struct {
 	Identity string
 	cluster  *cluster.Cluster
+}
+
+// BaseCrossMailGrainClient provides shared cluster access and default call options for CrossMail grains.
+type BaseCrossMailGrainClient struct {
+	ClusterFn func() *cluster.Cluster
+	Opts      []cluster.GrainCallOption
+}
+
+// NewBaseCrossMailGrainClient creates a BaseCrossMailGrainClient with default call options.
+func NewBaseCrossMailGrainClient(c func() *cluster.Cluster, opts ...cluster.GrainCallOption) *BaseCrossMailGrainClient {
+	return &BaseCrossMailGrainClient{ClusterFn: c, Opts: opts}
+}
+
+// LoadMail requests the execution on the cluster.
+func (h *BaseCrossMailGrainClient) LoadMail(identity string, r *LoadMailRequest, opts ...cluster.GrainCallOption) (*LoadMailResponse, error) {
+	cli := GetCrossMailGrainClient(h.ClusterFn(), identity)
+	return cli.LoadMail(identity, r, h.mergeOpts(opts)...)
+}
+
+func (h *BaseCrossMailGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
+	if len(h.Opts) == 0 {
+		return opts
+	}
+	merged := make([]cluster.GrainCallOption, 0, len(h.Opts)+len(opts))
+	merged = append(merged, h.Opts...)
+	merged = append(merged, opts...)
+	return merged
 }
 
 // LoadMail requests the execution on to the cluster with CallOptions

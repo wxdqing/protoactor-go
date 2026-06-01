@@ -24,10 +24,12 @@ func NewKind(kind string, props *actor.Props) *Kind {
 	}
 }
 
+// WithMemberStrategy sets the member strategy builder for this kind.
 func (k *Kind) WithMemberStrategy(strategyBuilder func(*Cluster) MemberStrategy) {
 	k.StrategyBuilder = strategyBuilder
 }
 
+// Build creates an activated kind for the given cluster.
 func (k *Kind) Build(cluster *Cluster) *ActivatedKind {
 	var strategy MemberStrategy = nil
 	if k.StrategyBuilder != nil {
@@ -41,6 +43,7 @@ func (k *Kind) Build(cluster *Cluster) *ActivatedKind {
 	}
 }
 
+// ActivatedKind tracks runtime state for a kind registered in the cluster.
 type ActivatedKind struct {
 	Kind     string
 	Props    *actor.Props
@@ -48,14 +51,17 @@ type ActivatedKind struct {
 	count    int32
 }
 
+// Inc increments the activated instance count.
 func (ak *ActivatedKind) Inc() {
 	atomic.AddInt32(&ak.count, 1)
 }
 
+// Dec decrements the activated instance count.
 func (ak *ActivatedKind) Dec() {
 	atomic.AddInt32(&ak.count, -1)
 }
 
+// Count returns the current activated instance count.
 func (ak *ActivatedKind) Count() int32 {
 	return atomic.LoadInt32(&ak.count)
 }
