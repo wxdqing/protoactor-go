@@ -63,14 +63,19 @@ func (a *BaseActor) initialize(ctx actor.Context, msg *cluster.ClusterInit) {
 
 func (a *BaseActor) receiveGrainRequest(ctx actor.Context, msg *cluster.GrainRequest) {
 	if a.handler == nil {
-		ctx.Respond(cluster.NewGrainErrorResponse(
-			cluster.ErrorReason_NOT_FOUND,
-			fmt.Sprintf("grain method index %d not found", msg.MethodIndex),
-		))
+		if !msg.OneWay && ctx.Sender() != nil {
+			ctx.Respond(cluster.NewGrainErrorResponse(
+				cluster.ErrorReason_NOT_FOUND,
+				fmt.Sprintf("grain method index %d not found", msg.MethodIndex),
+			))
+		}
 		return
 	}
 
 	resp, err := a.callHandler(msg)
+	if msg.OneWay || ctx.Sender() == nil {
+		return
+	}
 	if err != nil {
 		ctx.Respond(cluster.FromError(err))
 		return

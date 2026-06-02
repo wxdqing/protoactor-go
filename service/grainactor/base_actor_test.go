@@ -88,6 +88,29 @@ func TestBaseActorReturnsHandlerErrorForUnknownMethodIndex(t *testing.T) {
 	}
 }
 
+func TestBaseActorSkipsRespondForOneWayRequest(t *testing.T) {
+	handler := &fakeHandler{methodIndex: 7}
+	system := actor.NewActorSystem()
+	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
+		return NewBaseActor("player", "player_equip", handler)
+	}))
+
+	system.Root.Send(pid, &cluster.ClusterInit{
+		Identity: &cluster.ClusterIdentity{Identity: "player-1", Kind: "player_equip"},
+	})
+
+	system.Root.Send(pid, &cluster.GrainRequest{
+		MethodIndex: 7,
+		OneWay:      true,
+	})
+
+	time.Sleep(50 * time.Millisecond)
+
+	if !handler.called {
+		t.Fatal("handler was not called")
+	}
+}
+
 func TestBaseActorRecoversHandlerPanic(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
