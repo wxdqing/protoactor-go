@@ -10,11 +10,6 @@ type {{ lowerFirst .Name }}Handler struct {
 {{ if .RouteKeyField }}
 type {{ lowerFirst .Actor }}{{ toCamel .RouteKeyField }}Key struct{}
 
-// With{{ toCamel .RouteKeyField }}Key routes {{ .Actor }} actor calls by {{ .RouteKeyField }}.
-func With{{ toCamel .RouteKeyField }}Key({{ lowerFirst (toCamel .RouteKeyField) }} uint64) cluster.GrainCallOption {
-	return cluster.WithRouteKey({{ lowerFirst (toCamel .RouteKeyField) }})
-}
-
 // Get{{ toCamel .RouteKeyField }}Key returns the {{ .RouteKeyField }} route key from ctx.
 func Get{{ toCamel .RouteKeyField }}Key(ctx context.Context) (uint64, error) {
 	{{ lowerFirst (toCamel .RouteKeyField) }}, ok := ctx.Value({{ lowerFirst .Actor }}{{ toCamel .RouteKeyField }}Key{}).(uint64)
@@ -23,18 +18,6 @@ func Get{{ toCamel .RouteKeyField }}Key(ctx context.Context) (uint64, error) {
 	}
 
 	return {{ lowerFirst (toCamel .RouteKeyField) }}, nil
-}
-
-func routeKeyFrom{{ toCamel .RouteKeyField }}Options(opts []cluster.GrainCallOption) (uint64, error) {
-	config := &cluster.GrainCallConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-	if !config.HasRouteKey {
-		return 0, fmt.Errorf("missing route key option With{{ toCamel .RouteKeyField }}Key")
-	}
-
-	return config.RouteKey, nil
 }
 {{ end }}
 

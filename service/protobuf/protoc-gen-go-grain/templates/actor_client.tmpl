@@ -1,0 +1,18 @@
+{{ if .RouteKeyField }}
+// With{{ toCamel .RouteKeyField }}Key routes {{ .Actor }} actor calls by {{ .RouteKeyField }}.
+func With{{ toCamel .RouteKeyField }}Key({{ lowerFirst (toCamel .RouteKeyField) }} uint64) cluster.GrainCallOption {
+	return cluster.WithRouteKey({{ lowerFirst (toCamel .RouteKeyField) }})
+}
+
+func routeKeyFrom{{ toCamel .RouteKeyField }}Options(opts []cluster.GrainCallOption) (uint64, error) {
+	config := &cluster.GrainCallConfig{}
+	for _, opt := range opts {
+		opt(config)
+	}
+	if !config.HasRouteKey {
+		return 0, fmt.Errorf("missing route key option With{{ toCamel .RouteKeyField }}Key")
+	}
+
+	return config.RouteKey, nil
+}
+{{ end }}

@@ -25,6 +25,7 @@ func main() {
 			}
 			generateFile(gen, f)
 		}
+		generateGrainClientInitFile(gen)
 
 		return nil
 	})

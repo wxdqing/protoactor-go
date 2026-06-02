@@ -33,7 +33,6 @@ const (
 
 	timePackage       = protogen.GoImportPath("time")
 	contextPackage    = protogen.GoImportPath("context")
-	errorsPackage     = protogen.GoImportPath("errors")
 	fmtPackage        = protogen.GoImportPath("fmt")
 	slogPackage       = protogen.GoImportPath("log/slog")
 	protoPackage      = protogen.GoImportPath("google.golang.org/protobuf/proto")
@@ -53,11 +52,17 @@ func generateFile(gen *protogen.Plugin, file *protogen.File) {
 		return
 	}
 
-	filename := file.GeneratedFilenamePrefix + "_grain.pb.go"
-	g := gen.NewGeneratedFile(filename, file.GoImportPath)
+	serverFile := gen.NewGeneratedFile(file.GeneratedFilenamePrefix+"_grain_server.pb.go", file.GoImportPath)
+	generateHeader(gen, serverFile, file)
+	generateServerContent(gen, serverFile, file)
 
-	generateHeader(gen, g, file)
-	generateContent(gen, g, file)
+	if len(file.Services) == 0 {
+		return
+	}
+
+	clientFile := gen.NewGeneratedFile(file.GeneratedFilenamePrefix+"_grain_client.pb.go", file.GoImportPath)
+	generateHeader(gen, clientFile, file)
+	generateClientContent(gen, clientFile, file)
 }
 
 func generateHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
@@ -80,6 +85,200 @@ func generateHeader(gen *protogen.Plugin, g *protogen.GeneratedFile, file *proto
 	g.P()
 }
 
+func generateServerContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
+	g.P("package ", file.GoPackageName)
+
+	clusterPackage := protogen.GoImportPath(clusterImportPath)
+
+	for _, enum := range file.Enums {
+		if enum.Desc.Name() == "ErrorReason" {
+			g.QualifiedGoIdent(clusterPackage.Ident(""))
+			g.QualifiedGoIdent(fmtPackage.Ident(""))
+			generateErrorReasons(g, enum)
+		}
+	}
+	if len(file.Services) == 0 {
+		return
+	}
+
+	g.QualifiedGoIdent(clusterPackage.Ident(""))
+	g.QualifiedGoIdent(actorPackage.Ident(""))
+	g.QualifiedGoIdent(protoPackage.Ident(""))
+
+	services := buildFileServiceDescs(gen, g, file)
+	usesGrainactor := false
+	usesLegacyActor := false
+	for _, service := range services {
+		usesGrainactor = usesGrainactor || service.UseGrainactor
+		usesLegacyActor = usesLegacyActor || !service.UseGrainactor
+	}
+
+	if usesGrainactor {
+		g.QualifiedGoIdent(contextPackage.Ident(""))
+		g.QualifiedGoIdent(fmtPackage.Ident(""))
+		g.QualifiedGoIdent(grainactorPackage.Ident(""))
+	}
+	if usesLegacyActor {
+		g.QualifiedGoIdent(slogPackage.Ident(""))
+		g.QualifiedGoIdent(timePackage.Ident(""))
+	}
+
+	actors := buildAndApplyActorIndexes(services)
+
+	for _, service := range services {
+		g.P(service.executeServer())
+		g.P()
+	}
+	for _, actor := range actors {
+		g.P(actor.execute())
+		g.P()
+	}
+
+	generateRespond(g)
+}
+
+func generateClientContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
+	g.P("package ", file.GoPackageName)
+
+	clusterPackage := protogen.GoImportPath(clusterImportPath)
+	g.QualifiedGoIdent(clusterPackage.Ident(""))
+	g.QualifiedGoIdent(fmtPackage.Ident(""))
+	g.QualifiedGoIdent(protoPackage.Ident(""))
+	g.QualifiedGoIdent(slogPackage.Ident(""))
+
+	services := buildFileServiceDescs(gen, g, file)
+	for _, service := range services {
+		for _, method := range service.Methods {
+			if method.Options.Future {
+				g.QualifiedGoIdent(actorPackage.Ident(""))
+				break
+			}
+		}
+	}
+	actors := buildAndApplyActorIndexes(services)
+
+	for _, service := range services {
+		g.P(service.executeClient())
+		g.P()
+	}
+	for _, actor := range actors {
+		g.P(actor.executeClient())
+		g.P()
+	}
+}
+
+func buildFileServiceDescs(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) []*serviceDesc {
+	actorBases, err := collectActorBases(gen)
+	if err != nil {
+		panic(err)
+	}
+	services := make([]*serviceDesc, 0, len(file.Services))
+	for _, service := range file.Services {
+		sd, err := buildServiceDesc(service, g, actorBases)
+		if err != nil {
+			panic(err)
+		}
+		if len(sd.Methods) != 0 {
+			services = append(services, sd)
+		}
+	}
+
+	return services
+}
+
+func buildAndApplyActorIndexes(services []*serviceDesc) []*actorDesc {
+	grainactorServices := make([]*serviceDesc, 0, len(services))
+	for _, service := range services {
+		if service.UseGrainactor {
+			grainactorServices = append(grainactorServices, service)
+		}
+	}
+
+	actors, err := buildActorDescs(grainactorServices)
+	if err != nil {
+		panic(err)
+	}
+
+	return actors
+}
+
+func generateGrainClientInitFile(gen *protogen.Plugin) {
+	servicesByImportPath := make(map[protogen.GoImportPath][]string)
+	prefixByImportPath := make(map[protogen.GoImportPath]string)
+	packageNameByImportPath := make(map[protogen.GoImportPath]protogen.GoPackageName)
+	for _, file := range gen.Files {
+		if !file.Generate || len(file.Services) == 0 {
+			continue
+		}
+		serviceNames := collectGeneratedServiceNames(file)
+		if len(serviceNames) == 0 {
+			continue
+		}
+		importPath := file.GoImportPath
+		if _, ok := prefixByImportPath[importPath]; !ok {
+			prefixByImportPath[importPath] = generatedPackagePrefix(file)
+			packageNameByImportPath[importPath] = file.GoPackageName
+		}
+		servicesByImportPath[importPath] = append(servicesByImportPath[importPath], serviceNames...)
+	}
+
+	for importPath, services := range servicesByImportPath {
+		sort.Strings(services)
+		services = uniqueStrings(services)
+		filename := prefixByImportPath[importPath] + "grain_client_init.pb.go"
+		g := gen.NewGeneratedFile(filename, importPath)
+		g.P("// Code generated by protoc-gen-grain. DO NOT EDIT.")
+		g.P()
+		g.P("package ", packageNameByImportPath[importPath])
+		g.QualifiedGoIdent(protogen.GoImportPath(clusterImportPath).Ident(""))
+		g.P((&grainClientInitDesc{Services: services}).execute())
+	}
+}
+
+func collectGeneratedServiceNames(file *protogen.File) []string {
+	names := make([]string, 0, len(file.Services))
+	for _, service := range file.Services {
+		if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
+			continue
+		}
+		for _, method := range service.Methods {
+			if method.Desc.IsStreamingClient() || method.Desc.IsStreamingServer() {
+				continue
+			}
+			if _, ok := proto.GetExtension(method.Desc.Options(), options.E_MethodOptions).(*options.MethodOptions); ok {
+				names = append(names, service.GoName)
+				break
+			}
+		}
+	}
+
+	return names
+}
+
+func generatedPackagePrefix(file *protogen.File) string {
+	prefix := file.GeneratedFilenamePrefix
+	slash := strings.LastIndex(prefix, "/")
+	if slash < 0 {
+		return ""
+	}
+
+	return prefix[:slash+1]
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+	unique := values[:1]
+	for _, value := range values[1:] {
+		if value != unique[len(unique)-1] {
+			unique = append(unique, value)
+		}
+	}
+
+	return unique
+}
+
 func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *protogen.File) {
 	g.P("package ", file.GoPackageName)
 
@@ -97,23 +296,12 @@ func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *prot
 		return
 	}
 
-	actorBases, err := collectActorBases(gen)
-	if err != nil {
-		panic(err)
-	}
-	services := make([]*serviceDesc, 0, len(file.Services))
+	services := buildFileServiceDescs(gen, g, file)
 	usesGrainactor := false
 	usesLegacyActor := false
-	for _, service := range file.Services {
-		sd, err := buildServiceDesc(service, g, actorBases)
-		if err != nil {
-			panic(err)
-		}
-		if len(sd.Methods) != 0 {
-			services = append(services, sd)
-			usesGrainactor = usesGrainactor || sd.UseGrainactor
-			usesLegacyActor = usesLegacyActor || !sd.UseGrainactor
-		}
+	for _, service := range services {
+		usesGrainactor = usesGrainactor || service.UseGrainactor
+		usesLegacyActor = usesLegacyActor || !service.UseGrainactor
 	}
 
 	g.QualifiedGoIdent(actorPackage.Ident(""))
@@ -127,17 +315,7 @@ func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *prot
 	}
 	g.QualifiedGoIdent(slogPackage.Ident(""))
 
-	grainactorServices := make([]*serviceDesc, 0, len(services))
-	for _, service := range services {
-		if service.UseGrainactor {
-			grainactorServices = append(grainactorServices, service)
-		}
-	}
-
-	actors, err := buildActorDescs(grainactorServices)
-	if err != nil {
-		panic(err)
-	}
+	actors := buildAndApplyActorIndexes(services)
 
 	for _, service := range services {
 		g.P(service.execute())
