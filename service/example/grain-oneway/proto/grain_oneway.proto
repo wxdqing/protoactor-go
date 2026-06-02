@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package grainoneway;
+
+import "service/protobuf/protoc-gen-go-grain/options/options.proto";
+
+option go_package = "github.com/asynkron/protoactor-go/service/example/grain-oneway/proto";
+option (options.actor_base) = {
+  actor: "player"
+  kind: "player_equip"
+  node_type: "game"
+  field: "server_id"
+};
+
+message PingRequest {
+  uint64 server_id = 1;
+}
+
+message PingResponse {
+  int64 server_time = 1;
+}
+
+service Player {
+  option (options.actor) = "player";
+
+  rpc Ping(PingRequest) returns (PingResponse) {
+    option (options.method_options) = { oneway: true };
+  }
+}
