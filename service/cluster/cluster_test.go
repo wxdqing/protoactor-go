@@ -173,6 +173,32 @@ func TestCluster_Call(t *testing.T) {
 	})
 }
 
+func TestCluster_Send(t *testing.T) {
+	assert := assert.New(t)
+
+	received := make(chan struct{}, 1)
+	testProps := actor.PropsFromFunc(func(context actor.Context) {
+		switch context.Message().(type) {
+		case *GrainRequest:
+			received <- struct{}{}
+		}
+	})
+
+	c := newClusterForTest("mycluster", nil)
+	pid := c.ActorSystem.Root.Spawn(testProps)
+	assert.NotNil(pid)
+	c.PidCache.Set("name", "kind", pid)
+
+	err := c.Send(nil, "name", "kind", &GrainRequest{MethodIndex: 1, OneWay: true})
+	assert.NoError(err)
+
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		assert.Fail("one-way grain message was not delivered")
+	}
+}
+
 func TestCluster_Get(t *testing.T) {
 	cp := newInmemoryProvider()
 	kind := NewKind("kind", actor.PropsFromFunc(func(ctx actor.Context) {

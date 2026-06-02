@@ -6,4 +6,5 @@ import "github.com/asynkron/protoactor-go/actor"
 type Context interface {
 	Request(placementContext *PlacementContext, identity string, kind string, message interface{}, opts ...GrainCallOption) (interface{}, error)
 	RequestFuture(placementContext *PlacementContext, identity string, kind string, message interface{}, opts ...GrainCallOption) (actor.Future, error)
+	Send(placementContext *PlacementContext, identity string, kind string, message interface{}, opts ...GrainCallOption) error
 }

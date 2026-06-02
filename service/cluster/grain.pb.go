@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.1
-// source: service/cluster/grain.proto
+// source: grain.proto
 
 package cluster
 
@@ -28,13 +28,14 @@ type GrainRequest struct {
 	MessageTypeName string                 `protobuf:"bytes,3,opt,name=message_type_name,json=messageTypeName,proto3" json:"message_type_name,omitempty"`
 	RouteKey        uint64                 `protobuf:"varint,4,opt,name=route_key,json=routeKey,proto3" json:"route_key,omitempty"`
 	HasRouteKey     bool                   `protobuf:"varint,5,opt,name=has_route_key,json=hasRouteKey,proto3" json:"has_route_key,omitempty"`
+	OneWay          bool                   `protobuf:"varint,6,opt,name=one_way,json=oneWay,proto3" json:"one_way,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GrainRequest) Reset() {
 	*x = GrainRequest{}
-	mi := &file_service_cluster_grain_proto_msgTypes[0]
+	mi := &file_grain_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -46,7 +47,7 @@ func (x *GrainRequest) String() string {
 func (*GrainRequest) ProtoMessage() {}
 
 func (x *GrainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_cluster_grain_proto_msgTypes[0]
+	mi := &file_grain_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -59,7 +60,7 @@ func (x *GrainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrainRequest.ProtoReflect.Descriptor instead.
 func (*GrainRequest) Descriptor() ([]byte, []int) {
-	return file_service_cluster_grain_proto_rawDescGZIP(), []int{0}
+	return file_grain_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GrainRequest) GetMethodIndex() int32 {
@@ -97,6 +98,13 @@ func (x *GrainRequest) GetHasRouteKey() bool {
 	return false
 }
 
+func (x *GrainRequest) GetOneWay() bool {
+	if x != nil {
+		return x.OneWay
+	}
+	return false
+}
+
 type GrainResponse struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	MessageData     []byte                 `protobuf:"bytes,1,opt,name=message_data,json=messageData,proto3" json:"message_data,omitempty"`
@@ -107,7 +115,7 @@ type GrainResponse struct {
 
 func (x *GrainResponse) Reset() {
 	*x = GrainResponse{}
-	mi := &file_service_cluster_grain_proto_msgTypes[1]
+	mi := &file_grain_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -119,7 +127,7 @@ func (x *GrainResponse) String() string {
 func (*GrainResponse) ProtoMessage() {}
 
 func (x *GrainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_cluster_grain_proto_msgTypes[1]
+	mi := &file_grain_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -132,7 +140,7 @@ func (x *GrainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrainResponse.ProtoReflect.Descriptor instead.
 func (*GrainResponse) Descriptor() ([]byte, []int) {
-	return file_service_cluster_grain_proto_rawDescGZIP(), []int{1}
+	return file_grain_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GrainResponse) GetMessageData() []byte {
@@ -160,7 +168,7 @@ type GrainErrorResponse struct {
 
 func (x *GrainErrorResponse) Reset() {
 	*x = GrainErrorResponse{}
-	mi := &file_service_cluster_grain_proto_msgTypes[2]
+	mi := &file_grain_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -172,7 +180,7 @@ func (x *GrainErrorResponse) String() string {
 func (*GrainErrorResponse) ProtoMessage() {}
 
 func (x *GrainErrorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_cluster_grain_proto_msgTypes[2]
+	mi := &file_grain_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -185,7 +193,7 @@ func (x *GrainErrorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrainErrorResponse.ProtoReflect.Descriptor instead.
 func (*GrainErrorResponse) Descriptor() ([]byte, []int) {
-	return file_service_cluster_grain_proto_rawDescGZIP(), []int{2}
+	return file_grain_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GrainErrorResponse) GetReason() string {
@@ -209,17 +217,18 @@ func (x *GrainErrorResponse) GetMetadata() map[string]string {
 	return nil
 }
 
-var File_service_cluster_grain_proto protoreflect.FileDescriptor
+var File_grain_proto protoreflect.FileDescriptor
 
-const file_service_cluster_grain_proto_rawDesc = "" +
+const file_grain_proto_rawDesc = "" +
 	"\n" +
-	"\x1bservice/cluster/grain.proto\x12\acluster\"\xc1\x01\n" +
+	"\vgrain.proto\x12\acluster\"\xda\x01\n" +
 	"\fGrainRequest\x12!\n" +
 	"\fmethod_index\x18\x01 \x01(\x05R\vmethodIndex\x12!\n" +
 	"\fmessage_data\x18\x02 \x01(\fR\vmessageData\x12*\n" +
 	"\x11message_type_name\x18\x03 \x01(\tR\x0fmessageTypeName\x12\x1b\n" +
 	"\troute_key\x18\x04 \x01(\x04R\brouteKey\x12\"\n" +
-	"\rhas_route_key\x18\x05 \x01(\bR\vhasRouteKey\"^\n" +
+	"\rhas_route_key\x18\x05 \x01(\bR\vhasRouteKey\x12\x17\n" +
+	"\aone_way\x18\x06 \x01(\bR\x06oneWay\"^\n" +
 	"\rGrainResponse\x12!\n" +
 	"\fmessage_data\x18\x01 \x01(\fR\vmessageData\x12*\n" +
 	"\x11message_type_name\x18\x02 \x01(\tR\x0fmessageTypeName\"\xca\x01\n" +
@@ -232,25 +241,25 @@ const file_service_cluster_grain_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B4Z2/github.com/asynkron/protoactor-go/service/clusterb\x06proto3"
 
 var (
-	file_service_cluster_grain_proto_rawDescOnce sync.Once
-	file_service_cluster_grain_proto_rawDescData []byte
+	file_grain_proto_rawDescOnce sync.Once
+	file_grain_proto_rawDescData []byte
 )
 
-func file_service_cluster_grain_proto_rawDescGZIP() []byte {
-	file_service_cluster_grain_proto_rawDescOnce.Do(func() {
-		file_service_cluster_grain_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_service_cluster_grain_proto_rawDesc), len(file_service_cluster_grain_proto_rawDesc)))
+func file_grain_proto_rawDescGZIP() []byte {
+	file_grain_proto_rawDescOnce.Do(func() {
+		file_grain_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grain_proto_rawDesc), len(file_grain_proto_rawDesc)))
 	})
-	return file_service_cluster_grain_proto_rawDescData
+	return file_grain_proto_rawDescData
 }
 
-var file_service_cluster_grain_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_service_cluster_grain_proto_goTypes = []any{
+var file_grain_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_grain_proto_goTypes = []any{
 	(*GrainRequest)(nil),       // 0: cluster.GrainRequest
 	(*GrainResponse)(nil),      // 1: cluster.GrainResponse
 	(*GrainErrorResponse)(nil), // 2: cluster.GrainErrorResponse
 	nil,                        // 3: cluster.GrainErrorResponse.MetadataEntry
 }
-var file_service_cluster_grain_proto_depIdxs = []int32{
+var file_grain_proto_depIdxs = []int32{
 	3, // 0: cluster.GrainErrorResponse.metadata:type_name -> cluster.GrainErrorResponse.MetadataEntry
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
@@ -259,26 +268,26 @@ var file_service_cluster_grain_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_service_cluster_grain_proto_init() }
-func file_service_cluster_grain_proto_init() {
-	if File_service_cluster_grain_proto != nil {
+func init() { file_grain_proto_init() }
+func file_grain_proto_init() {
+	if File_grain_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_cluster_grain_proto_rawDesc), len(file_service_cluster_grain_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grain_proto_rawDesc), len(file_grain_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_service_cluster_grain_proto_goTypes,
-		DependencyIndexes: file_service_cluster_grain_proto_depIdxs,
-		MessageInfos:      file_service_cluster_grain_proto_msgTypes,
+		GoTypes:           file_grain_proto_goTypes,
+		DependencyIndexes: file_grain_proto_depIdxs,
+		MessageInfos:      file_grain_proto_msgTypes,
 	}.Build()
-	File_service_cluster_grain_proto = out.File
-	file_service_cluster_grain_proto_goTypes = nil
-	file_service_cluster_grain_proto_depIdxs = nil
+	File_grain_proto = out.File
+	file_grain_proto_goTypes = nil
+	file_grain_proto_depIdxs = nil
 }

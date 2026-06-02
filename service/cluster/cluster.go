@@ -211,6 +211,11 @@ func (c *Cluster) RequestFuture(placementContext *PlacementContext, identity str
 	return c.context.RequestFuture(placementContext, identity, kind, message, option...)
 }
 
+// Send delivers a one-way grain message without waiting for a response.
+func (c *Cluster) Send(placementContext *PlacementContext, identity string, kind string, message interface{}, option ...GrainCallOption) error {
+	return c.context.Send(placementContext, identity, kind, message, option...)
+}
+
 // GetClusterKind returns the activated kind for the given name.
 func (c *Cluster) GetClusterKind(kind string) *ActivatedKind {
 	k, ok := c.kinds[kind]

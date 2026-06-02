@@ -196,6 +196,74 @@ func (dcc *DefaultContext) RequestFuture(placementContext *PlacementContext, ide
 	}
 }
 
+func (dcc *DefaultContext) Send(placementContext *PlacementContext, identity, kind string, message interface{}, opts ...GrainCallOption) error {
+	var counter int
+	callConfig := NewGrainCallOptions(dcc.cluster)
+	for _, o := range opts {
+		o(callConfig)
+	}
+
+	_context := callConfig.Context
+
+	dcc.cluster.Logger().Debug("Sending", slog.String("identity", identity), slog.String("kind", kind), slog.String("type", reflect.TypeOf(message).String()), slog.Any("message", message))
+
+	ttl := callConfig.Timeout
+
+	ctx, cancel := context.WithTimeout(context.Background(), ttl)
+	defer cancel()
+
+	start := time.Now()
+	var fromCache bool
+	var pid *actor.PID
+
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("send failed: %w", ctx.Err())
+		default:
+			if counter >= callConfig.RetryCount {
+				return fmt.Errorf("have reached max retries: %v", callConfig.RetryCount)
+			}
+
+			pid, fromCache = dcc.getPid(placementContext, identity, kind)
+			if pid == nil {
+				dcc.cluster.Logger().Debug("Requesting PID from IdentityLookup but got nil", slog.String("identity", identity), slog.String("kind", kind))
+				counter = callConfig.RetryAction(counter)
+				if dcc.cluster.metricsEnabled {
+					_ctx := context.Background()
+					attrs := append(
+						actor.SystemLabels(dcc.cluster.ActorSystem),
+						attribute.String("clusterkind", kind),
+						attribute.String("messagetype", actor.MessageName(message)),
+					)
+					dcc.cluster.metrics.ClusterRequestRetryCount.Add(_ctx, 1, metric.WithAttributes(attrs...))
+				}
+				continue
+			}
+
+			_context.Send(pid, message)
+
+			if dcc.cluster.metricsEnabled {
+				totalTime := time.Since(start)
+				_ctx := context.Background()
+				source := "IIdentityLookup"
+				if fromCache {
+					source = "PidCache"
+				}
+				attrs := append(
+					actor.SystemLabels(dcc.cluster.ActorSystem),
+					attribute.String("clusterkind", kind),
+					attribute.String("messagetype", actor.MessageName(message)),
+					attribute.String("pidsource", source),
+				)
+				dcc.cluster.metrics.ClusterRequestDuration.Record(_ctx, totalTime.Seconds(), metric.WithAttributes(attrs...))
+			}
+
+			return nil
+		}
+	}
+}
+
 // gets the cached PID for the given identity
 // it can return nil if none is found.
 func (dcc *DefaultContext) getPid(placementContext *PlacementContext, identity, kind string) (*actor.PID, bool) {

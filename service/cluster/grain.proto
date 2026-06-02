@@ -8,6 +8,7 @@ message GrainRequest {
   string message_type_name = 3;
   uint64 route_key = 4;
   bool has_route_key = 5;
+  bool one_way = 6;
 }
 
 message GrainResponse {
