@@ -268,13 +268,50 @@ func TestBuildActorDescsAssignsActorScopedMethodIndexes(t *testing.T) {
 	}
 }
 
-func TestBuildActorDescsRejectsNodeTypeMismatch(t *testing.T) {
-	_, err := buildActorDescs([]*serviceDesc{
-		{Name: "CrossSns", Kind: "player_equip", NodeType: "game", Actor: "player"},
-		{Name: "CrossMail", Kind: "player_equip", NodeType: "mail", Actor: "player"},
-	})
+func TestValidateActorBaseRejectsMissingFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		base    *options.ActorBase
+		contain string
+	}{
+		{
+			name:    "missing actor",
+			base:    &options.ActorBase{Kind: "k", NodeType: "n", Field: "f"},
+			contain: "missing required field actor",
+		},
+		{
+			name:    "missing kind",
+			base:    &options.ActorBase{Actor: "player", NodeType: "n", Field: "f"},
+			contain: "missing required field kind",
+		},
+		{
+			name:    "missing node_type",
+			base:    &options.ActorBase{Actor: "player", Kind: "k", Field: "f"},
+			contain: "missing required field node_type",
+		},
+		{
+			name:    "missing field",
+			base:    &options.ActorBase{Actor: "player", Kind: "k", NodeType: "n"},
+			contain: "missing required field field",
+		},
+	}
 
-	requireErrorContains(t, err, `actor "player" uses multiple node types`)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateActorBase("test.proto", 0, tt.base)
+			requireErrorContains(t, err, tt.contain)
+		})
+	}
+}
+
+func TestValidateActorBaseAcceptsCompleteEntry(t *testing.T) {
+	err := validateActorBase("test.proto", 0, &options.ActorBase{
+		Actor:    "player",
+		Kind:     "player_equip",
+		NodeType: "game",
+		Field:    "server_id",
+	})
+	requireNoError(t, err)
 }
 
 func TestGrainactorTemplateDoesNotGenerateServiceBinding(t *testing.T) {
@@ -406,6 +443,70 @@ func TestGrainactorTemplateGeneratesBaseClient(t *testing.T) {
 	requireContains(t, got, "func (h *BaseCrossSnsGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption")
 }
 
+func TestGrainactorTemplateGeneratesOnewaySend(t *testing.T) {
+	desc := &serviceDesc{
+		Name:                  "CrossSns",
+		ClusterImportPath:     serviceClusterImportPath,
+		ClusterImportPathName: "cluster",
+		UsePlacementContext:   true,
+		Kind:                  "player_equip",
+		NodeType:              "game",
+		Actor:                 "player",
+		RouteKeyField:         "server_id",
+		UseGrainactor:         true,
+		Methods: []*methodDesc{
+			{
+				Name:    "Keepalive",
+				Input:   "KeepaliveRequest",
+				Output:  "KeepaliveResponse",
+				Index:   1,
+				Options: &options.MethodOptions{Oneway: true},
+			},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "Keepalive(ctx context.Context, req *KeepaliveRequest) error")
+	requireContains(t, got, "func (g *CrossSnsGrainClient) KeepaliveSend(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error")
+	requireContains(t, got, "func (g *CrossSnsGrainClient) KeepaliveSendByRouteKey(identity string, routeKey uint64, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error")
+	requireContains(t, got, "reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes, OneWay: true, RouteKey: routeKey, HasRouteKey: true}")
+	requireContains(t, got, "return g.cluster.Send(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)")
+	requireContains(t, got, "func (h *BaseCrossSnsGrainClient) KeepaliveSend(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error")
+	requireNotContains(t, got, "func (g *CrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error)")
+}
+
+func TestActorTemplateGeneratesOnewayHandlerDispatch(t *testing.T) {
+	desc := &actorDesc{
+		Name:          "Player",
+		Actor:         "player",
+		Kind:          "player_equip",
+		RouteKeyField: "server_id",
+		Methods: []*actorMethodDesc{
+			{
+				Service: &serviceDesc{Name: "CrossSns", Actor: "player", RouteKeyField: "server_id"},
+				Method: &methodDesc{
+					Name:    "Keepalive",
+					Input:   "KeepaliveRequest",
+					Output:  "KeepaliveResponse",
+					Index:   1,
+					Options: &options.MethodOptions{Oneway: true},
+				},
+				Index: 1,
+			},
+		},
+		Services: []*serviceDesc{
+			{Name: "CrossSns"},
+		},
+	}
+
+	got := desc.execute()
+
+	requireContains(t, got, "if err := h.handler.Keepalive(handlerCtx, msg); err != nil {")
+	requireContains(t, got, "return nil, nil")
+	requireNotContains(t, got, "return h.handler.Keepalive(handlerCtx, msg)")
+}
+
 func TestGrainactorTemplateGeneratesRouteKeyFuture(t *testing.T) {
 	desc := &serviceDesc{
 		Name:                  "CrossSns",
@@ -486,15 +587,6 @@ func TestBuildActorDescsRejectsDuplicateMethodNames(t *testing.T) {
 	})
 
 	requireErrorContains(t, err, `actor "player" has duplicate method "Keepalive"`)
-}
-
-func TestBuildActorDescsRejectsKindMismatch(t *testing.T) {
-	_, err := buildActorDescs([]*serviceDesc{
-		{Name: "CrossSns", Kind: "player_equip", Actor: "player"},
-		{Name: "CrossMail", Kind: "player_mail", Actor: "player"},
-	})
-
-	requireErrorContains(t, err, `actor "player" uses multiple kinds`)
 }
 
 func TestServiceClusterGrainTemplateUsesPlacementContext(t *testing.T) {

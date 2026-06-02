@@ -97,12 +97,18 @@ func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *prot
 		return
 	}
 
-	routeKeyFields := collectActorRouteKeyFields(gen)
+	actorBases, err := collectActorBases(gen)
+	if err != nil {
+		panic(err)
+	}
 	services := make([]*serviceDesc, 0, len(file.Services))
 	usesGrainactor := false
 	usesLegacyActor := false
 	for _, service := range file.Services {
-		sd := buildServiceDesc(service, g, routeKeyFields)
+		sd, err := buildServiceDesc(service, g, actorBases)
+		if err != nil {
+			panic(err)
+		}
 		if len(sd.Methods) != 0 {
 			services = append(services, sd)
 			usesGrainactor = usesGrainactor || sd.UseGrainactor
@@ -146,24 +152,37 @@ func generateContent(gen *protogen.Plugin, g *protogen.GeneratedFile, file *prot
 	generateRespond(g)
 }
 
-func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile, routeKeyFields map[string]string) *serviceDesc {
+func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile, actorBases map[string]*options.ActorBase) (*serviceDesc, error) {
 	if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
 		g.P("//")
 		g.P(deprecationComment)
 	}
 
-	actor := getServiceStringOption(service, options.E_Actor, service.GoName)
-	routeKeyField := getServiceStringOption(service, options.E_RouteKeyField, routeKeyFields[actor])
+	useGrainactor := hasServiceOption(service, options.E_Actor)
 	sd := &serviceDesc{
 		Name:                  service.GoName,
 		ClusterImportPath:     clusterImportPath,
 		ClusterImportPathName: "cluster",
 		UsePlacementContext:   clusterImportPath == serviceClusterImportPath,
-		Kind:                  getServiceStringOption(service, options.E_Kind, service.GoName),
-		NodeType:              getServiceStringOption(service, options.E_NodeType, ""),
-		Actor:                 actor,
-		RouteKeyField:         routeKeyField,
-		UseGrainactor:         hasServiceOption(service, options.E_Kind) || hasServiceOption(service, options.E_NodeType) || hasServiceOption(service, options.E_Actor),
+		UseGrainactor:         useGrainactor,
+	}
+
+	if useGrainactor {
+		actor := getServiceStringOption(service, options.E_Actor, "")
+		if actor == "" {
+			return nil, fmt.Errorf("service %q: option actor must not be empty", service.GoName)
+		}
+		base, ok := actorBases[actor]
+		if !ok {
+			return nil, fmt.Errorf("service %q: actor %q not found in file actor_base options", service.GoName, actor)
+		}
+		sd.Actor = actor
+		sd.Kind = base.GetKind()
+		sd.NodeType = base.GetNodeType()
+		sd.RouteKeyField = base.GetField()
+	} else {
+		sd.Kind = service.GoName
+		sd.Actor = service.GoName
 	}
 
 	for i, method := range service.Methods {
@@ -180,6 +199,13 @@ func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile, rout
 			methodOptions = &options.MethodOptions{}
 		}
 
+		if methodOptions.GetOneway() && methodOptions.GetFuture() {
+			return nil, fmt.Errorf("service %q method %q: oneway and future are mutually exclusive", service.GoName, method.GoName)
+		}
+		if methodOptions.GetOneway() && methodOptions.GetReenterable() {
+			return nil, fmt.Errorf("service %q method %q: oneway and reenterable are mutually exclusive", service.GoName, method.GoName)
+		}
+
 		md := &methodDesc{
 			Name:    method.GoName,
 			Input:   g.QualifiedGoIdent(method.Input.GoIdent),
@@ -191,33 +217,53 @@ func buildServiceDesc(service *protogen.Service, g *protogen.GeneratedFile, rout
 		sd.Methods = append(sd.Methods, md)
 	}
 
-	return sd
+	return sd, nil
 }
 
-func collectActorRouteKeyFields(gen *protogen.Plugin) map[string]string {
-	routeKeyFields := make(map[string]string)
+func collectActorBases(gen *protogen.Plugin) (map[string]*options.ActorBase, error) {
+	actorBases := make(map[string]*options.ActorBase)
 	if gen == nil {
-		return routeKeyFields
+		return actorBases, nil
 	}
 
 	for _, file := range gen.Files {
 		if file == nil || file.Desc == nil {
 			continue
 		}
-		values := proto.GetExtension(file.Desc.Options(), options.E_ActorRouteKey)
-		routeKeys, ok := values.([]*options.ActorRouteKey)
+		values := proto.GetExtension(file.Desc.Options(), options.E_ActorBase)
+		bases, ok := values.([]*options.ActorBase)
 		if !ok {
 			continue
 		}
-		for _, routeKey := range routeKeys {
-			if routeKey.GetActor() == "" || routeKey.GetField() == "" {
-				continue
+		for i, base := range bases {
+			if err := validateActorBase(file.Desc.Path(), i, base); err != nil {
+				return nil, err
 			}
-			routeKeyFields[routeKey.GetActor()] = routeKey.GetField()
+			if _, exists := actorBases[base.GetActor()]; exists {
+				return nil, fmt.Errorf("file %q: duplicate actor_base for actor %q", file.Desc.Path(), base.GetActor())
+			}
+			actorBases[base.GetActor()] = base
 		}
 	}
 
-	return routeKeyFields
+	return actorBases, nil
+}
+
+func validateActorBase(filePath string, index int, base *options.ActorBase) error {
+	if base.GetActor() == "" {
+		return fmt.Errorf("file %q: actor_base[%d] missing required field actor", filePath, index)
+	}
+	if base.GetKind() == "" {
+		return fmt.Errorf("file %q: actor_base[%d] missing required field kind", filePath, index)
+	}
+	if base.GetNodeType() == "" {
+		return fmt.Errorf("file %q: actor_base[%d] missing required field node_type", filePath, index)
+	}
+	if base.GetField() == "" {
+		return fmt.Errorf("file %q: actor_base[%d] missing required field field", filePath, index)
+	}
+
+	return nil
 }
 
 func getServiceStringOption(service *protogen.Service, extension protoreflect.ExtensionType, defaultValue string) string {
@@ -253,15 +299,6 @@ func buildActorDescs(services []*serviceDesc) ([]*actorDesc, error) {
 				RouteKeyField: service.RouteKeyField,
 			}
 			actorsByName[actorName] = actor
-		}
-		if actor.Kind != service.Kind {
-			return nil, fmt.Errorf("actor %q uses multiple kinds: %q and %q", actorName, actor.Kind, service.Kind)
-		}
-		if actor.NodeType != service.NodeType {
-			return nil, fmt.Errorf("actor %q uses multiple node types: %q and %q", actorName, actor.NodeType, service.NodeType)
-		}
-		if actor.RouteKeyField != service.RouteKeyField {
-			return nil, fmt.Errorf("actor %q uses multiple route key fields: %q and %q", actorName, actor.RouteKeyField, service.RouteKeyField)
 		}
 		for _, existingService := range actor.Services {
 			for _, existingMethod := range existingService.Methods {

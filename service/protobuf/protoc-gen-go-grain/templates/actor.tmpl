@@ -49,6 +49,22 @@ func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *clu
 					"argument": msg.String(),
 				})
 		}
+		{{- if .Method.Options.Oneway }}
+		{{- if .Service.RouteKeyField }}
+		if !req.HasRouteKey {
+			return nil, fmt.Errorf("missing route key {{ .Service.RouteKeyField }}")
+		}
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue({{ lowerFirst .Service.Actor }}{{ toCamel .Service.RouteKeyField }}Key{}, req.RouteKey))
+		if err := h.handler.{{ .Method.Name }}(handlerCtx, msg); err != nil {
+			return nil, err
+		}
+		{{- else }}
+		if err := h.handler.{{ .Method.Name }}(ctx, msg); err != nil {
+			return nil, err
+		}
+		{{- end }}
+		return nil, nil
+		{{- else }}
 		{{- if .Service.RouteKeyField }}
 		if !req.HasRouteKey {
 			return nil, fmt.Errorf("missing route key {{ .Service.RouteKeyField }}")
@@ -57,6 +73,7 @@ func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *clu
 		return h.handler.{{ .Method.Name }}(handlerCtx, msg)
 		{{- else }}
 		return h.handler.{{ .Method.Name }}(ctx, msg)
+		{{- end }}
 		{{- end }}
 {{- end }}
 	default:

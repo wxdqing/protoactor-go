@@ -304,14 +304,16 @@ const file_test_grainactor_grainactor_proto_rawDesc = "" +
 	"\x0fLoadMailRequest\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\x04R\bserverId\"(\n" +
 	"\x10LoadMailResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count2\xc9\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count2\xb7\x01\n" +
 	"\bCrossSns\x12M\n" +
 	"\n" +
-	"RoleSimple\x12\x1d.grainactor.RoleSimpleRequest\x1a\x1e.grainactor.RoleSimpleResponse\"\x00\x12J\n" +
-	"\tKeepalive\x12\x1c.grainactor.KeepaliveRequest\x1a\x1d.grainactor.KeepaliveResponse\"\x00\x1a\"\x8a\xb5\x18\fplayer_equip\x92\xb5\x18\x04game\x9a\xb5\x18\x06player2x\n" +
+	"RoleSimple\x12\x1d.grainactor.RoleSimpleRequest\x1a\x1e.grainactor.RoleSimpleResponse\"\x00\x12P\n" +
+	"\tKeepalive\x12\x1c.grainactor.KeepaliveRequest\x1a\x1d.grainactor.KeepaliveResponse\"\x06\x82\xb5\x18\x02\x18\x01\x1a\n" +
+	"\x82\xb5\x18\x06player2`\n" +
 	"\tCrossMail\x12G\n" +
-	"\bLoadMail\x12\x1b.grainactor.LoadMailRequest\x1a\x1c.grainactor.LoadMailResponse\"\x00\x1a\"\x8a\xb5\x18\fplayer_equip\x92\xb5\x18\x04game\x9a\xb5\x18\x06playerBo\xa2\xb5\x18\x13\n" +
-	"\x06player\x12\tserver_idZVgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/test/grainactorb\x06proto3"
+	"\bLoadMail\x12\x1b.grainactor.LoadMailRequest\x1a\x1c.grainactor.LoadMailResponse\"\x00\x1a\n" +
+	"\x82\xb5\x18\x06playerB\x83\x01\x82\xb5\x18'\n" +
+	"\x06player\x12\fplayer_equip\x1a\x04game\"\tserver_idZVgithub.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/test/grainactorb\x06proto3"
 
 var (
 	file_test_grainactor_grainactor_proto_rawDescOnce sync.Once

@@ -46,7 +46,7 @@ func GetCrossSnsGrainClient(c *cluster.Cluster, id string) *CrossSnsGrainClient 
 type CrossSns interface {
 	RoleSimple(ctx context.Context, req *RoleSimpleRequest) (*RoleSimpleResponse, error)
 
-	Keepalive(ctx context.Context, req *KeepaliveRequest) (*KeepaliveResponse, error)
+	Keepalive(ctx context.Context, req *KeepaliveRequest) error
 }
 
 // CrossSnsGrainClient holds the base data for the CrossSnsGrain
@@ -72,10 +72,10 @@ func (h *BaseCrossSnsGrainClient) RoleSimple(identity string, r *RoleSimpleReque
 	return cli.RoleSimple(identity, r, h.mergeOpts(opts)...)
 }
 
-// Keepalive requests the execution on the cluster.
-func (h *BaseCrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+// KeepaliveSend delivers a one-way grain message without waiting for a response.
+func (h *BaseCrossSnsGrainClient) KeepaliveSend(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error {
 	cli := GetCrossSnsGrainClient(h.ClusterFn(), identity)
-	return cli.Keepalive(identity, r, h.mergeOpts(opts)...)
+	return cli.KeepaliveSend(identity, r, h.mergeOpts(opts)...)
 }
 
 func (h *BaseCrossSnsGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
@@ -144,60 +144,33 @@ func (g *CrossSnsGrainClient) RoleSimpleRequest(placementContext *cluster.Placem
 	}
 }
 
-// Keepalive requests the execution on to the cluster with CallOptions
-func (g *CrossSnsGrainClient) Keepalive(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+// KeepaliveSend delivers a one-way grain message without waiting for a response.
+func (g *CrossSnsGrainClient) KeepaliveSend(identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error {
 	routeKey, err := routeKeyFromServerIDOptions(opts)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return g.KeepaliveByRouteKey(identity, routeKey, r, opts...)
+	return g.KeepaliveSendByRouteKey(identity, routeKey, r, opts...)
 }
-
-func (g *CrossSnsGrainClient) KeepaliveByRouteKey(identity string, routeKey uint64, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+func (g *CrossSnsGrainClient) KeepaliveSendByRouteKey(identity string, routeKey uint64, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error {
 	placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}
-	return g.KeepaliveWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
+	return g.KeepaliveSendWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
 }
 
-func (g *CrossSnsGrainClient) KeepaliveWithPlacement(placementContext *cluster.PlacementContext, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
+func (g *CrossSnsGrainClient) KeepaliveSendWithPlacement(placementContext *cluster.PlacementContext, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error {
+	return g.KeepaliveSendWithPlacementAndRouteKey(placementContext, 0, identity, r, opts...)
+}
+
+func (g *CrossSnsGrainClient) KeepaliveSendWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) error {
 	if g.cluster.Config.RequestLog {
-		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "CrossSns"), slog.String("method", "Keepalive"), slog.Any("request", r))
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "CrossSns"), slog.String("method", "Keepalive"), slog.Any("request", r))
 	}
 	bytes, err := proto.Marshal(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes}
-	return g.KeepaliveRequest(placementContext, reqMsg, identity, opts...)
-
-}
-func (g *CrossSnsGrainClient) KeepaliveWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *KeepaliveRequest, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
-	if g.cluster.Config.RequestLog {
-		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "CrossSns"), slog.String("method", "Keepalive"), slog.Any("request", r))
-	}
-	bytes, err := proto.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes, RouteKey: routeKey, HasRouteKey: true}
-	return g.KeepaliveRequest(placementContext, reqMsg, identity, opts...)
-}
-
-func (g *CrossSnsGrainClient) KeepaliveRequest(placementContext *cluster.PlacementContext, reqMsg *cluster.GrainRequest, identity string, opts ...cluster.GrainCallOption) (*KeepaliveResponse, error) {
-	resp, err := g.cluster.Request(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("error request: %w", err)
-	}
-	switch msg := resp.(type) {
-	case *KeepaliveResponse:
-		return msg, nil
-	case *cluster.GrainErrorResponse:
-		if msg == nil {
-			return nil, nil
-		}
-		return nil, msg
-	default:
-		return nil, fmt.Errorf("unknown response type %T", resp)
-	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: 1, MessageData: bytes, OneWay: true, RouteKey: routeKey, HasRouteKey: true}
+	return g.cluster.Send(placementContext, identity, ActorKindNameCrossSns, reqMsg, opts...)
 }
 
 const ActorKindNameCrossMail = "player_equip"
@@ -385,7 +358,10 @@ func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainReques
 			return nil, fmt.Errorf("missing route key server_id")
 		}
 		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
-		return h.handler.Keepalive(handlerCtx, msg)
+		if err := h.handler.Keepalive(handlerCtx, msg); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	case 2:
 		msg := &LoadMailRequest{}
 		if err := proto.Unmarshal(req.MessageData, msg); err != nil {

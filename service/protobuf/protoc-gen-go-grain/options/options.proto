@@ -12,11 +12,15 @@ message MethodOptions {
   // generate an extra future interface in the client
   // all methods called in reenterable methods should use the future interface
   bool future = 2;
+  // generate a fire-and-forget client method that uses cluster.Send
+  bool oneway = 3;
 }
 
-message ActorRouteKey {
+message ActorBase {
   string actor = 1;
-  string field = 2;
+  string kind = 2;
+  string node_type = 3;
+  string field = 4;
 }
 
 extend google.protobuf.MethodOptions {
@@ -24,12 +28,9 @@ extend google.protobuf.MethodOptions {
 }
 
 extend google.protobuf.FileOptions {
-  repeated ActorRouteKey actor_route_key = 50004;
+  repeated ActorBase actor_base = 50000;
 }
 
 extend google.protobuf.ServiceOptions {
-  string kind = 50001;
-  string node_type = 50002;
-  string actor = 50003;
-  string route_key_field = 50005;
+  string actor = 50000;
 }

@@ -56,7 +56,13 @@ type {{ $service.Name }} interface {
 	ReceiveDefault(ctx cluster.GrainContext)
 	{{- end }}
 	{{- range $method := .Methods }}
-	{{ if $method.Options.Reenterable -}}
+	{{ if $method.Options.Oneway -}}
+	{{- if $service.UseGrainactor }}
+	{{ $method.Name }}(ctx context.Context, req *{{ $method.Input }}) error
+	{{- else }}
+	{{ $method.Name }}(req *{{ $method.Input }}, ctx cluster.GrainContext) error
+	{{- end }}
+	{{ else if $method.Options.Reenterable -}}
 	{{- if $service.UseGrainactor }}
 	{{ $method.Name }}(ctx context.Context, req *{{ $method.Input }}, respond func(*{{ $method.Output }}), onError func(error)) error
 	{{- else }}
@@ -90,18 +96,26 @@ func NewBase{{ $service.Name }}GrainClient(c func() *cluster.Cluster, opts ...cl
 }
 
 {{ range $method := .Methods}}
-{{ if $method.Options.Future -}}
+{{ if $method.Options.Oneway -}}
+// {{ $method.Name }}Send delivers a one-way grain message without waiting for a response.
+func (h *Base{{ $service.Name }}GrainClient) {{ $method.Name }}Send(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	cli := Get{{ $service.Name }}GrainClient(h.ClusterFn(), identity)
+	return cli.{{ $method.Name }}Send(identity, r, h.mergeOpts(opts)...)
+}
+{{ else if $method.Options.Future -}}
 // {{ $method.Name }}Future returns a future for the execution of {{ $method.Name }} on the cluster.
 func (h *Base{{ $service.Name }}GrainClient) {{ $method.Name }}Future(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (actor.Future, error) {
 	cli := Get{{ $service.Name }}GrainClient(h.ClusterFn(), identity)
 	return cli.{{ $method.Name }}Future(identity, r, h.mergeOpts(opts)...)
 }
 {{ end }}
+{{ if not $method.Options.Oneway -}}
 // {{ $method.Name }} requests the execution on the cluster.
 func (h *Base{{ $service.Name }}GrainClient) {{ $method.Name }}(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
 	cli := Get{{ $service.Name }}GrainClient(h.ClusterFn(), identity)
 	return cli.{{ $method.Name }}(identity, r, h.mergeOpts(opts)...)
 }
+{{ end }}
 {{ end }}
 
 func (h *Base{{ $service.Name }}GrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
@@ -157,6 +171,7 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Future(r *{{ $method.
         return f, nil
 }
 {{ end }}
+{{ if not $method.Options.Oneway -}}
 // {{ $method.Name }} requests the execution on to the cluster with CallOptions
 {{ if $service.UseGrainactor -}}
 func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) (*{{ $method.Output }}, error) {
@@ -252,6 +267,86 @@ func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Request(placementCont
 }
 {{- end }}
 {{ end }}
+{{ if $method.Options.Oneway -}}
+// {{ $method.Name }}Send delivers a one-way grain message without waiting for a response.
+{{ if $service.UseGrainactor -}}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Send(identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	{{- if $service.RouteKeyField }}
+	routeKey, err := routeKeyFrom{{ toCamel $service.RouteKeyField }}Options(opts)
+	if err != nil {
+		return err
+	}
+	return g.{{ $method.Name }}SendByRouteKey(identity, routeKey, r, opts...)
+	{{- else }}
+	var placementContext *cluster.PlacementContext
+	{{- if $service.NodeType }}
+	placementContext = &cluster.PlacementContext{NodeType: "{{ $service.NodeType }}"}
+	{{- end }}
+	return g.{{ $method.Name }}SendWithPlacement(placementContext, identity, r, opts...)
+	{{- end }}
+}
+
+{{- if $service.RouteKeyField }}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}SendByRouteKey(identity string, routeKey uint64, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	placementContext := &cluster.PlacementContext{NodeType: "{{ $service.NodeType }}", RouteKey: routeKey}
+	return g.{{ $method.Name }}SendWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
+}
+
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}SendWithPlacement(placementContext *cluster.PlacementContext, identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	return g.{{ $method.Name }}SendWithPlacementAndRouteKey(placementContext, 0, identity, r, opts...)
+}
+
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}SendWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "{{ $service.Name }}"), slog.String("method", "{{ $method.Name }}"), slog.Any("request", r))
+	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes, OneWay: true, RouteKey: routeKey, HasRouteKey: true}
+	return g.cluster.Send(placementContext, identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
+}
+{{- else }}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}SendWithPlacement(placementContext *cluster.PlacementContext, identity string, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "{{ $service.Name }}"), slog.String("method", "{{ $method.Name }}"), slog.Any("request", r))
+	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes, OneWay: true}
+	return g.cluster.Send(placementContext, identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
+}
+{{- end }}
+{{- else if $service.UsePlacementContext -}}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Send(placementContext *cluster.PlacementContext, r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "{{ $service.Name }}"), slog.String("method", "{{ $method.Name }}"), slog.Any("request", r))
+	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes, OneWay: true}
+	return g.cluster.Send(placementContext, g.Identity, ActorKindName{{ $service.Name }}, reqMsg, opts...)
+}
+{{- else -}}
+func (g *{{ $service.Name }}GrainClient) {{ $method.Name }}Send(r *{{ $method.Input }}, opts ...cluster.GrainCallOption) error {
+	if g.cluster.Config.RequestLog {
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "{{ $service.Name }}"), slog.String("method", "{{ $method.Name }}"), slog.Any("request", r))
+	}
+	bytes, err := proto.Marshal(r)
+	if err != nil {
+		return err
+	}
+	reqMsg := &cluster.GrainRequest{MethodIndex: {{ $method.Index }}, MessageData: bytes, OneWay: true}
+	return g.cluster.Send(g.Identity, "{{ $service.Name }}", reqMsg, opts...)
+}
+{{- end }}
+{{ end }}
+{{ end }}
 {{ if not $service.UseGrainactor -}}
 // {{ $service.Name }}Actor represents the actor structure
 type {{ $service.Name }}Actor struct {
@@ -287,25 +382,37 @@ func (a *{{ $service.Name }}Actor) Receive(ctx actor.Context) {
 			err := proto.Unmarshal(msg.MessageData, req)
 			if err != nil {
 				ctx.Logger().Error("[Grain] {{ $method.Name }}({{ $method.Input }}) proto.Unmarshal failed.", slog.Any("error", err))
-				resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-					WithMetadata(map[string]string{
-						"argument": req.String(),
-				})
-				ctx.Respond(resp)
+				if !msg.OneWay && ctx.Sender() != nil {
+					resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
+						WithMetadata(map[string]string{
+							"argument": req.String(),
+					})
+					ctx.Respond(resp)
+				}
 				return
 			}
-			{{ if $method.Options.Reenterable -}}
+			{{ if $method.Options.Oneway -}}
+			if err := a.inner.{{ $method.Name }}(req, a.ctx); err != nil {
+				ctx.Logger().Error("[Grain] {{ $method.Name }}({{ $method.Input }}) failed.", slog.Any("error", err))
+			}
+			{{ else if $method.Options.Reenterable -}}
 			err = a.inner.{{ $method.Name }}(req, respond[*{{ $method.Output }}](a.ctx), a.onError, a.ctx)
 			{{ else }}
 			r0, err := a.inner.{{ $method.Name }}(req, a.ctx)
 			{{ end -}}
+			{{ if not $method.Options.Oneway -}}
 			if err != nil {
-				resp := cluster.FromError(err)
-				ctx.Respond(resp)
+				if ctx.Sender() != nil {
+					resp := cluster.FromError(err)
+					ctx.Respond(resp)
+				}
 				return
 			}
 			{{ if not $method.Options.Reenterable -}}
-			ctx.Respond(r0)
+			if ctx.Sender() != nil {
+				ctx.Respond(r0)
+			}
+			{{ end -}}
 			{{ end -}}
 		{{ end -}}
 		}
