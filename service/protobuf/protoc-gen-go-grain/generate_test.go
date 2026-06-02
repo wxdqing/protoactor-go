@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -85,6 +86,62 @@ func TestGenerateGrainactorOptions(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("protoc failed: %v\n%s", err, out)
+	}
+}
+
+func TestGenerateGrainactorSplitFiles(t *testing.T) {
+	_ = os.Remove("test/grainactor/grainactor_grain_client.pb.go")
+	_ = os.Remove("test/grainactor/grainactor_grain_server.pb.go")
+	_ = os.Remove("test/grainactor/grain_client_init.pb.go")
+
+	cmd := exec.Command("protoc",
+		"--go_out=.",
+		"--go_opt=paths=source_relative",
+		"--plugin=protoc-gen-go-grain=protoc-gen-go-grain.sh",
+		"--go-grain_out=.",
+		"--go-grain_opt=paths=source_relative",
+		"-I../../..",
+		"-I.",
+		"test/grainactor/grainactor.proto",
+	)
+	cmd.Dir = "."
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("protoc failed: %v\n%s", err, out)
+	}
+
+	client := readGeneratedFile(t, "test/grainactor/grainactor_grain_client.pb.go")
+	server := readGeneratedFile(t, "test/grainactor/grainactor_grain_server.pb.go")
+	init := readGeneratedFile(t, "test/grainactor/grain_client_init.pb.go")
+
+	requireContains(t, client, "func GetCrossSnsGrainClient(c *cluster.Cluster, id string) *CrossSnsGrainClient")
+	requireContains(t, client, "type BaseCrossSnsGrainClient struct {")
+	requireContains(t, client, "func WithServerIDKey(serverID uint64) cluster.GrainCallOption")
+	requireNotContains(t, client, "type PlayerActor interface {")
+	requireNotContains(t, client, "func NewPlayerKind(handler PlayerActor, state any, opts ...actor.PropsOption) *cluster.Kind")
+
+	requireContains(t, server, "type PlayerActor interface {")
+	requireContains(t, server, "func NewPlayerKind(handler PlayerActor, state any, opts ...actor.PropsOption) *cluster.Kind")
+	requireNotContains(t, server, "type BaseCrossSnsGrainClient struct {")
+	requireNotContains(t, server, "func GetCrossSnsGrainClient(c *cluster.Cluster, id string) *CrossSnsGrainClient")
+
+	requireContains(t, init, "func InitServiceGrainClients(fn func() *cluster.Cluster, opts ...cluster.GrainCallOption)")
+	requireContains(t, init, "baseCrossSnsGrainClient")
+	requireContains(t, init, "*BaseCrossSnsGrainClient")
+	requireContains(t, init, "baseCrossMailGrainClient")
+	requireContains(t, init, "*BaseCrossMailGrainClient")
+	requireContains(t, init, "func GetBaseCrossSnsGrainClient() *BaseCrossSnsGrainClient")
+	requireContains(t, init, "func GetBaseCrossMailGrainClient() *BaseCrossMailGrainClient")
+}
+
+func TestGeneratedFixturePackagesCompile(t *testing.T) {
+	cmd := exec.Command("go", "test", "./test/...")
+	cmd.Dir = "."
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go test generated fixtures failed: %v\n%s", err, out)
 	}
 }
 
@@ -218,15 +275,28 @@ func TestActorTemplateAddsRouteKeyToHandlerContext(t *testing.T) {
 	got := desc.execute()
 
 	requireContains(t, got, "type playerServerIDKey struct{}")
-	requireContains(t, got, "func WithServerIDKey(serverID uint64) cluster.GrainCallOption {")
-	requireContains(t, got, "return cluster.WithRouteKey(serverID)")
 	requireContains(t, got, "func GetServerIDKey(ctx context.Context) (uint64, error) {")
 	requireContains(t, got, `return 0, fmt.Errorf("missing route key server_id")`)
-	requireContains(t, got, "func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error)")
-	requireContains(t, got, `return 0, fmt.Errorf("missing route key option WithServerIDKey")`)
 	requireContains(t, got, `return nil, fmt.Errorf("missing route key server_id")`)
 	requireContains(t, got, "handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))")
 	requireContains(t, got, "return h.handler.Keepalive(handlerCtx, msg)")
+}
+
+func TestActorClientTemplateAddsRouteKeyHelpers(t *testing.T) {
+	desc := &actorDesc{
+		Name:          "Player",
+		Actor:         "player",
+		Kind:          "player_equip",
+		RouteKeyField: "server_id",
+	}
+
+	got := desc.executeClient()
+
+	requireContains(t, got, "func WithServerIDKey(serverID uint64) cluster.GrainCallOption {")
+	requireContains(t, got, "return cluster.WithRouteKey(serverID)")
+	requireContains(t, got, "func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error)")
+	requireContains(t, got, `return 0, fmt.Errorf("missing route key option WithServerIDKey")`)
+	requireNotContains(t, got, "func GetServerIDKey(ctx context.Context) (uint64, error)")
 }
 
 func TestBuildActorDescsAssignsActorScopedMethodIndexes(t *testing.T) {
@@ -675,6 +745,17 @@ func requireNotContains(t *testing.T, haystack string, needle string) {
 	if strings.Contains(haystack, needle) {
 		t.Fatalf("generated output unexpectedly contains %q\n\n%s", needle, haystack)
 	}
+}
+
+func readGeneratedFile(t *testing.T, path string) string {
+	t.Helper()
+
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read generated file %q: %v", path, err)
+	}
+
+	return string(bytes)
 }
 
 func requireNoError(t *testing.T, err error) {

@@ -7,7 +7,6 @@
 package hello
 
 import (
-	fmt "fmt"
 	actor "github.com/asynkron/protoactor-go/actor"
 	cluster "github.com/asynkron/protoactor-go/service/cluster"
 	proto "google.golang.org/protobuf/proto"
@@ -16,26 +15,11 @@ import (
 	time "time"
 )
 
-const ActorKindNameHello = "Hello"
-const ActorNodeTypeHello = ""
-const ActorGroupNameHello = "Hello"
-
 var xHelloFactory func() Hello
 
 // HelloFactory produces a Hello
 func HelloFactory(factory func() Hello) {
 	xHelloFactory = factory
-}
-
-// GetHelloGrainClient instantiates a new HelloGrainClient with given Identity
-func GetHelloGrainClient(c *cluster.Cluster, id string) *HelloGrainClient {
-	if c == nil {
-		panic(fmt.Errorf("nil cluster instance"))
-	}
-	if id == "" {
-		panic(fmt.Errorf("empty id"))
-	}
-	return &HelloGrainClient{Identity: id, cluster: c}
 }
 
 // GetHelloKind instantiates a new cluster.Kind for Hello
@@ -68,39 +52,6 @@ type Hello interface {
 	ReceiveDefault(ctx cluster.GrainContext)
 
 	SayHello(req *emptypb.Empty, ctx cluster.GrainContext) (*SayHelloResponse, error)
-}
-
-// HelloGrainClient holds the base data for the HelloGrain
-type HelloGrainClient struct {
-	Identity string
-	cluster  *cluster.Cluster
-}
-
-// SayHello requests the execution on to the cluster with CallOptions
-func (g *HelloGrainClient) SayHello(placementContext *cluster.PlacementContext, r *emptypb.Empty, opts ...cluster.GrainCallOption) (*SayHelloResponse, error) {
-	if g.cluster.Config.RequestLog {
-		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "Hello"), slog.String("method", "SayHello"), slog.Any("request", r))
-	}
-	bytes, err := proto.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}
-	resp, err := g.cluster.Request(placementContext, g.Identity, ActorKindNameHello, reqMsg, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("error request: %w", err)
-	}
-	switch msg := resp.(type) {
-	case *SayHelloResponse:
-		return msg, nil
-	case *cluster.GrainErrorResponse:
-		if msg == nil {
-			return nil, nil
-		}
-		return nil, msg
-	default:
-		return nil, fmt.Errorf("unknown response type %T", resp)
-	}
 }
 
 // HelloActor represents the actor structure
@@ -136,21 +87,27 @@ func (a *HelloActor) Receive(ctx actor.Context) {
 			err := proto.Unmarshal(msg.MessageData, req)
 			if err != nil {
 				ctx.Logger().Error("[Grain] SayHello(emptypb.Empty) proto.Unmarshal failed.", slog.Any("error", err))
-				resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-					WithMetadata(map[string]string{
-						"argument": req.String(),
-					})
-				ctx.Respond(resp)
+				if !msg.OneWay && ctx.Sender() != nil {
+					resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
+						WithMetadata(map[string]string{
+							"argument": req.String(),
+						})
+					ctx.Respond(resp)
+				}
 				return
 			}
 
 			r0, err := a.inner.SayHello(req, a.ctx)
 			if err != nil {
-				resp := cluster.FromError(err)
-				ctx.Respond(resp)
+				if ctx.Sender() != nil {
+					resp := cluster.FromError(err)
+					ctx.Respond(resp)
+				}
 				return
 			}
-			ctx.Respond(r0)
+			if ctx.Sender() != nil {
+				ctx.Respond(r0)
+			}
 		}
 	default:
 		a.inner.ReceiveDefault(a.ctx)
@@ -164,26 +121,11 @@ func (a *HelloActor) onError(err error) {
 	a.ctx.Respond(resp)
 }
 
-const ActorKindNameWork = "Work"
-const ActorNodeTypeWork = ""
-const ActorGroupNameWork = "Work"
-
 var xWorkFactory func() Work
 
 // WorkFactory produces a Work
 func WorkFactory(factory func() Work) {
 	xWorkFactory = factory
-}
-
-// GetWorkGrainClient instantiates a new WorkGrainClient with given Identity
-func GetWorkGrainClient(c *cluster.Cluster, id string) *WorkGrainClient {
-	if c == nil {
-		panic(fmt.Errorf("nil cluster instance"))
-	}
-	if id == "" {
-		panic(fmt.Errorf("empty id"))
-	}
-	return &WorkGrainClient{Identity: id, cluster: c}
 }
 
 // GetWorkKind instantiates a new cluster.Kind for Work
@@ -216,39 +158,6 @@ type Work interface {
 	ReceiveDefault(ctx cluster.GrainContext)
 
 	DoWork(req *DoWorkRequest, ctx cluster.GrainContext) (*DoWorkResponse, error)
-}
-
-// WorkGrainClient holds the base data for the WorkGrain
-type WorkGrainClient struct {
-	Identity string
-	cluster  *cluster.Cluster
-}
-
-// DoWork requests the execution on to the cluster with CallOptions
-func (g *WorkGrainClient) DoWork(placementContext *cluster.PlacementContext, r *DoWorkRequest, opts ...cluster.GrainCallOption) (*DoWorkResponse, error) {
-	if g.cluster.Config.RequestLog {
-		g.cluster.Logger().Info("Requesting", slog.String("identity", g.Identity), slog.String("kind", "Work"), slog.String("method", "DoWork"), slog.Any("request", r))
-	}
-	bytes, err := proto.Marshal(r)
-	if err != nil {
-		return nil, err
-	}
-	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes}
-	resp, err := g.cluster.Request(placementContext, g.Identity, ActorKindNameWork, reqMsg, opts...)
-	if err != nil {
-		return nil, fmt.Errorf("error request: %w", err)
-	}
-	switch msg := resp.(type) {
-	case *DoWorkResponse:
-		return msg, nil
-	case *cluster.GrainErrorResponse:
-		if msg == nil {
-			return nil, nil
-		}
-		return nil, msg
-	default:
-		return nil, fmt.Errorf("unknown response type %T", resp)
-	}
 }
 
 // WorkActor represents the actor structure
@@ -284,21 +193,27 @@ func (a *WorkActor) Receive(ctx actor.Context) {
 			err := proto.Unmarshal(msg.MessageData, req)
 			if err != nil {
 				ctx.Logger().Error("[Grain] DoWork(DoWorkRequest) proto.Unmarshal failed.", slog.Any("error", err))
-				resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-					WithMetadata(map[string]string{
-						"argument": req.String(),
-					})
-				ctx.Respond(resp)
+				if !msg.OneWay && ctx.Sender() != nil {
+					resp := cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
+						WithMetadata(map[string]string{
+							"argument": req.String(),
+						})
+					ctx.Respond(resp)
+				}
 				return
 			}
 
 			r0, err := a.inner.DoWork(req, a.ctx)
 			if err != nil {
-				resp := cluster.FromError(err)
-				ctx.Respond(resp)
+				if ctx.Sender() != nil {
+					resp := cluster.FromError(err)
+					ctx.Respond(resp)
+				}
 				return
 			}
-			ctx.Respond(r0)
+			if ctx.Sender() != nil {
+				ctx.Respond(r0)
+			}
 		}
 	default:
 		a.inner.ReceiveDefault(a.ctx)

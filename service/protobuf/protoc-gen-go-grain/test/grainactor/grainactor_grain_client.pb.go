@@ -7,11 +7,8 @@
 package grainactor
 
 import (
-	context "context"
 	fmt "fmt"
-	actor "github.com/asynkron/protoactor-go/actor"
 	cluster "github.com/asynkron/protoactor-go/service/cluster"
-	grainactor "github.com/asynkron/protoactor-go/service/grainactor"
 	proto "google.golang.org/protobuf/proto"
 	slog "log/slog"
 )
@@ -19,13 +16,6 @@ import (
 const ActorKindNameCrossSns = "player_equip"
 const ActorNodeTypeCrossSns = "game"
 const ActorGroupNameCrossSns = "player"
-
-var xCrossSnsFactory func() CrossSns
-
-// CrossSnsFactory produces a CrossSns
-func CrossSnsFactory(factory func() CrossSns) {
-	xCrossSnsFactory = factory
-}
 
 // GetCrossSnsGrainClient instantiates a new CrossSnsGrainClient with given Identity
 func GetCrossSnsGrainClient(c *cluster.Cluster, id string) *CrossSnsGrainClient {
@@ -36,17 +26,6 @@ func GetCrossSnsGrainClient(c *cluster.Cluster, id string) *CrossSnsGrainClient 
 		panic(fmt.Errorf("empty id"))
 	}
 	return &CrossSnsGrainClient{Identity: id, cluster: c}
-}
-
-// GetCrossSnsKind instantiates a new cluster.Kind for CrossSns
-
-// GetCrossSnsKind instantiates a new cluster.Kind for CrossSns
-
-// CrossSns interfaces the services available to the CrossSns
-type CrossSns interface {
-	RoleSimple(ctx context.Context, req *RoleSimpleRequest) (*RoleSimpleResponse, error)
-
-	Keepalive(ctx context.Context, req *KeepaliveRequest) error
 }
 
 // CrossSnsGrainClient holds the base data for the CrossSnsGrain
@@ -177,13 +156,6 @@ const ActorKindNameCrossMail = "player_equip"
 const ActorNodeTypeCrossMail = "game"
 const ActorGroupNameCrossMail = "player"
 
-var xCrossMailFactory func() CrossMail
-
-// CrossMailFactory produces a CrossMail
-func CrossMailFactory(factory func() CrossMail) {
-	xCrossMailFactory = factory
-}
-
 // GetCrossMailGrainClient instantiates a new CrossMailGrainClient with given Identity
 func GetCrossMailGrainClient(c *cluster.Cluster, id string) *CrossMailGrainClient {
 	if c == nil {
@@ -193,15 +165,6 @@ func GetCrossMailGrainClient(c *cluster.Cluster, id string) *CrossMailGrainClien
 		panic(fmt.Errorf("empty id"))
 	}
 	return &CrossMailGrainClient{Identity: id, cluster: c}
-}
-
-// GetCrossMailKind instantiates a new cluster.Kind for CrossMail
-
-// GetCrossMailKind instantiates a new cluster.Kind for CrossMail
-
-// CrossMail interfaces the services available to the CrossMail
-type CrossMail interface {
-	LoadMail(ctx context.Context, req *LoadMailRequest) (*LoadMailResponse, error)
 }
 
 // CrossMailGrainClient holds the base data for the CrossMailGrain
@@ -293,30 +256,9 @@ func (g *CrossMailGrainClient) LoadMailRequest(placementContext *cluster.Placeme
 	}
 }
 
-type PlayerActor interface {
-	CrossSns
-	CrossMail
-}
-
-type playerHandler struct {
-	handler PlayerActor
-}
-
-type playerServerIDKey struct{}
-
 // WithServerIDKey routes player actor calls by server_id.
 func WithServerIDKey(serverID uint64) cluster.GrainCallOption {
 	return cluster.WithRouteKey(serverID)
-}
-
-// GetServerIDKey returns the server_id route key from ctx.
-func GetServerIDKey(ctx context.Context) (uint64, error) {
-	serverID, ok := ctx.Value(playerServerIDKey{}).(uint64)
-	if !ok {
-		return 0, fmt.Errorf("missing route key server_id")
-	}
-
-	return serverID, nil
 }
 
 func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error) {
@@ -329,73 +271,4 @@ func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error)
 	}
 
 	return config.RouteKey, nil
-}
-
-func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainRequest) (proto.Message, error) {
-	switch req.MethodIndex {
-	case 0:
-		msg := &RoleSimpleRequest{}
-		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
-			return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-				WithMetadata(map[string]string{
-					"argument": msg.String(),
-				})
-		}
-		if !req.HasRouteKey {
-			return nil, fmt.Errorf("missing route key server_id")
-		}
-		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
-		return h.handler.RoleSimple(handlerCtx, msg)
-	case 1:
-		msg := &KeepaliveRequest{}
-		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
-			return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-				WithMetadata(map[string]string{
-					"argument": msg.String(),
-				})
-		}
-		if !req.HasRouteKey {
-			return nil, fmt.Errorf("missing route key server_id")
-		}
-		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
-		if err := h.handler.Keepalive(handlerCtx, msg); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	case 2:
-		msg := &LoadMailRequest{}
-		if err := proto.Unmarshal(req.MessageData, msg); err != nil {
-			return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_INVALID_ARGUMENT, err.Error()).
-				WithMetadata(map[string]string{
-					"argument": msg.String(),
-				})
-		}
-		if !req.HasRouteKey {
-			return nil, fmt.Errorf("missing route key server_id")
-		}
-		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
-		return h.handler.LoadMail(handlerCtx, msg)
-	default:
-		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))
-	}
-}
-
-func NewPlayerBaseActor(handler PlayerActor, state any, opts ...grainactor.Option) actor.Actor {
-	if state != nil {
-		opts = append(opts, grainactor.WithState(state))
-	}
-	return grainactor.NewBaseActor("player", "player_equip", &playerHandler{handler: handler}, opts...)
-}
-
-func NewPlayerKind(handler PlayerActor, state any, opts ...actor.PropsOption) *cluster.Kind {
-	props := actor.PropsFromProducer(func() actor.Actor {
-		return NewPlayerBaseActor(handler, state)
-	}, opts...)
-	return cluster.NewKind("player_equip", props)
-}
-
-func respond[T proto.Message](ctx cluster.GrainContext) func(T) {
-	return func(resp T) {
-		ctx.Respond(resp)
-	}
 }
