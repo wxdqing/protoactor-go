@@ -41,7 +41,7 @@ require (
 	github.com/asynkron/goconsole v0.0.0-20160504192649-bfa12eebf716
 	github.com/labstack/echo/v4 v4.15.2
 	github.com/lmittmann/tint v1.1.3
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/tencentyun/tcaplusdb-go-sdk v0.2.3
 	github.com/wxdqing/staticrouter v0.0.0-20260527160151-22d37493bd28
 )
@@ -68,6 +68,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-metrics v0.5.4 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/tencentyun/tsf4g v0.0.1 // indirect
@@ -77,7 +78,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260511170946-3700d4141b60 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260511170946-3700d4141b60 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260523011958-0a33c5d7ca68 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
