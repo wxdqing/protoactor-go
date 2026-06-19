@@ -7,7 +7,7 @@ import (
 
 func TestContextCarriesActorMetadataAndState(t *testing.T) {
 	state := &struct{ Count int }{}
-	ctx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state)
+	ctx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state, nil)
 
 	got := FromContext(ctx)
 	if got == nil {
@@ -31,7 +31,7 @@ func TestContextCarriesActorMetadataAndState(t *testing.T) {
 
 func TestToContextCarriesActorMetadataAndValues(t *testing.T) {
 	state := &struct{ Count int }{}
-	actorCtx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state)
+	actorCtx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state, nil)
 	key := struct{}{}
 
 	ctx := ToContext(actorCtx, WithValue(key, uint64(42)))

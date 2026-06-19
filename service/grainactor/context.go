@@ -20,6 +20,7 @@ type Context interface {
 	Kind() string
 	Actor() string
 	State() any
+	PeerSession() (PeerSession, bool)
 }
 
 type actorContext struct {
@@ -29,9 +30,10 @@ type actorContext struct {
 	kind         string
 	actor        string
 	state        any
+	peerSession  func() PeerSession
 }
 
-func newContext(parent context.Context, grainContext cluster.GrainContext, identity, kind, actor string, state any) Context {
+func newContext(parent context.Context, grainContext cluster.GrainContext, identity, kind, actor string, state any, peerSession func() PeerSession) Context {
 	ctx := &actorContext{
 		Context:      parent,
 		grainContext: grainContext,
@@ -39,6 +41,7 @@ func newContext(parent context.Context, grainContext cluster.GrainContext, ident
 		kind:         kind,
 		actor:        actor,
 		state:        state,
+		peerSession:  peerSession,
 	}
 	ctx.Context = context.WithValue(parent, contextKey{}, ctx)
 	return ctx
@@ -82,6 +85,15 @@ func State[T any](ctx context.Context) (T, bool) {
 	return state, ok
 }
 
+// PeerSessionFromContext returns the active peer session stored in ctx, if any.
+func PeerSessionFromContext(ctx context.Context) (PeerSession, bool) {
+	actorCtx := FromContext(ctx)
+	if actorCtx == nil {
+		return nil, false
+	}
+	return actorCtx.PeerSession()
+}
+
 // GrainContext returns the service cluster grain context.
 func (c *actorContext) GrainContext() cluster.GrainContext {
 	return c.grainContext
@@ -105,4 +117,13 @@ func (c *actorContext) Actor() string {
 // State returns the shared actor state.
 func (c *actorContext) State() any {
 	return c.state
+}
+
+// PeerSession returns the active peer session for this actor instance.
+func (c *actorContext) PeerSession() (PeerSession, bool) {
+	if c.peerSession == nil {
+		return nil, false
+	}
+	session := c.peerSession()
+	return session, session != nil
 }
