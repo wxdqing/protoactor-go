@@ -240,9 +240,10 @@ func TestActorTemplateDispatchesByActorScopedMethodIndex(t *testing.T) {
 	got := desc.execute()
 
 	requireContains(t, got, "case 0:")
-	requireContains(t, got, "return h.handler.RoleSimple(ctx, msg)")
+	requireContains(t, got, "handlerCtx := grainactor.ToContext(ctx)")
+	requireContains(t, got, "return h.handler.RoleSimple(handlerCtx, msg)")
 	requireContains(t, got, "case 2:")
-	requireContains(t, got, "return h.handler.LoadMail(ctx, msg)")
+	requireContains(t, got, "return h.handler.LoadMail(handlerCtx, msg)")
 	requireContains(t, got, `cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))`)
 	requireNotContains(t, got, "Binding")
 	requireNotContains(t, got, "MessageTypeName")

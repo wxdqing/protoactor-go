@@ -42,7 +42,8 @@ func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *clu
 			return nil, err
 		}
 		{{- else }}
-		if err := h.handler.{{ .Method.Name }}(ctx, msg); err != nil {
+		handlerCtx := grainactor.ToContext(ctx)
+		if err := h.handler.{{ .Method.Name }}(handlerCtx, msg); err != nil {
 			return nil, err
 		}
 		{{- end }}
@@ -55,7 +56,8 @@ func (h *{{ lowerFirst .Name }}Handler) Receive(ctx grainactor.Context, req *clu
 		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue({{ lowerFirst .Service.Actor }}{{ toCamel .Service.RouteKeyField }}Key{}, req.RouteKey))
 		return h.handler.{{ .Method.Name }}(handlerCtx, msg)
 		{{- else }}
-		return h.handler.{{ .Method.Name }}(ctx, msg)
+		handlerCtx := grainactor.ToContext(ctx)
+		return h.handler.{{ .Method.Name }}(handlerCtx, msg)
 		{{- end }}
 		{{- end }}
 {{- end }}
