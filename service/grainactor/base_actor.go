@@ -3,6 +3,7 @@ package grainactor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/service/cluster"
@@ -11,13 +12,17 @@ import (
 
 // BaseActor hosts one logical actor group and delegates grain requests to a generated handler.
 type BaseActor struct {
-	actorName string
-	kind      string
-	handler   Handler
-	config    config
-	ctx       Context
-	state     any
-	session   PeerSession
+	actorName     string
+	kind          string
+	handler       Handler
+	config        config
+	ctx           Context
+	state         any
+	session       PeerSession
+	timerCancels  map[string]func()
+	timerHandlers map[string]func(Context)
+	timerEvery    map[string]time.Duration
+	eventHandlers map[string][]func(Context, any)
 }
 
 // NewBaseActor creates a shared actor for generated grain service handlers.
@@ -28,10 +33,14 @@ func NewBaseActor(actorName string, kind string, handler Handler, opts ...Option
 	}
 
 	return &BaseActor{
-		actorName: actorName,
-		kind:      kind,
-		handler:   handler,
-		config:    cfg,
+		actorName:     actorName,
+		kind:          kind,
+		handler:       handler,
+		config:        cfg,
+		timerCancels:  make(map[string]func()),
+		timerHandlers: make(map[string]func(Context)),
+		timerEvery:    make(map[string]time.Duration),
+		eventHandlers: make(map[string][]func(Context, any)),
 	}
 }
 
@@ -51,6 +60,20 @@ func (a *BaseActor) Receive(ctx actor.Context) {
 		a.receivePeerSessionBind(ctx, msg)
 	case *PeerSessionClear:
 		a.receivePeerSessionClear(ctx, msg)
+	case *scheduleAfter:
+		a.receiveScheduleAfter(ctx, msg)
+	case *scheduleEvery:
+		a.receiveScheduleEvery(ctx, msg)
+	case *cancelTimer:
+		a.receiveCancelTimer(msg)
+	case *timerFire:
+		a.receiveTimerFire(msg)
+	case *eventRegister:
+		a.receiveEventRegister(msg)
+	case *eventUnregister:
+		a.receiveEventUnregister(msg)
+	case *eventEmit:
+		a.receiveEventEmit(msg)
 	case *cluster.GrainRequest:
 		a.receiveGrainRequest(ctx, msg)
 	}
@@ -70,6 +93,8 @@ func (a *BaseActor) initialize(ctx actor.Context, msg *cluster.ClusterInit) {
 }
 
 func (a *BaseActor) stop() {
+	a.clearTimers()
+	a.clearEvents()
 	if a.ctx != nil {
 		_ = a.clearPeerSession(a.ctx.Identity(), a.ctx.Kind(), a.session)
 	}

@@ -29,6 +29,24 @@ func TestContextCarriesActorMetadataAndState(t *testing.T) {
 	}
 }
 
+func TestContextPeerSessionReflectsBoundSession(t *testing.T) {
+	session := &fakePeerSession{}
+	ctx := newContext(context.Background(), nil, "player-1", "player_equip", "player", nil, func() PeerSession {
+		return session
+	})
+
+	got, ok := ctx.PeerSession()
+	if !ok || got != session {
+		t.Fatalf("PeerSession() = %#v, %v; want session, true", got, ok)
+	}
+
+	handlerCtx := ToContext(ctx)
+	fromHandler, ok := PeerSessionFromContext(handlerCtx)
+	if !ok || fromHandler != session {
+		t.Fatalf("PeerSessionFromContext() = %#v, %v; want session, true", fromHandler, ok)
+	}
+}
+
 func TestToContextCarriesActorMetadataAndValues(t *testing.T) {
 	state := &struct{ Count int }{}
 	actorCtx := newContext(context.Background(), nil, "player-1", "player_equip", "player", state, nil)

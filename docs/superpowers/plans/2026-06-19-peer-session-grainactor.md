@@ -184,12 +184,12 @@ the actual I/O.
 - Modify: `../peer/example/gateway/*`
 - Add/update integration tests under `../peer/example`
 
-- [ ] Gateway builds the exact `PlacementContext` from hello / target inputs.
-- [ ] Game side activates or resolves the grain actor through cluster lookup.
-- [ ] Game side binds the local peer session handle to the resolved grain actor.
-- [ ] Grain actor uses `PeerSession.SendData` to write back to the client.
-- [ ] Grain actor uses `PeerSession.Close` for active close.
-- [ ] Add a three-node test proving `game -> gateway -> client` data and close
+- [x] Gateway builds the exact `PlacementContext` from hello / target inputs.
+- [x] Game side activates or resolves the grain actor through cluster lookup.
+- [x] Game side binds the local peer session handle to the resolved grain actor.
+- [x] Grain actor uses `PeerSession.SendData` to write back to the client.
+- [x] Grain actor uses `PeerSession.Close` for active close.
+- [x] Add a three-node test proving `game -> gateway -> client` data and close
   both pass through the peer session path.
 
 ### Task 6: Verification

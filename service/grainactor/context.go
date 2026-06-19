@@ -2,6 +2,7 @@ package grainactor
 
 import (
 	"context"
+	"time"
 
 	"github.com/asynkron/protoactor-go/service/cluster"
 )
@@ -21,6 +22,20 @@ type Context interface {
 	Actor() string
 	State() any
 	PeerSession() (PeerSession, bool)
+
+	// After schedules a one-shot timer handled inside the actor mailbox.
+	After(name string, delay time.Duration, fn func(Context))
+	// Every schedules a repeating timer handled inside the actor mailbox.
+	Every(name string, interval time.Duration, fn func(Context))
+	// CancelTimer cancels a named timer.
+	CancelTimer(name string)
+
+	// On registers an in-actor event handler.
+	On(event string, handler func(Context, any))
+	// Off removes all handlers for an event name.
+	Off(event string)
+	// Emit dispatches an event to registered handlers inside the actor mailbox.
+	Emit(event string, payload any)
 }
 
 type actorContext struct {
@@ -126,4 +141,60 @@ func (c *actorContext) PeerSession() (PeerSession, bool) {
 	}
 	session := c.peerSession()
 	return session, session != nil
+}
+
+func (c *actorContext) After(name string, delay time.Duration, fn func(Context)) {
+	if c.grainContext == nil || fn == nil {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &scheduleAfter{
+		name:  name,
+		delay: delay,
+		fn:    fn,
+	})
+}
+
+func (c *actorContext) Every(name string, interval time.Duration, fn func(Context)) {
+	if c.grainContext == nil || fn == nil {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &scheduleEvery{
+		name:     name,
+		interval: interval,
+		fn:       fn,
+	})
+}
+
+func (c *actorContext) CancelTimer(name string) {
+	if c.grainContext == nil || name == "" {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &cancelTimer{name: name})
+}
+
+func (c *actorContext) On(event string, handler func(Context, any)) {
+	if c.grainContext == nil || event == "" || handler == nil {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &eventRegister{
+		name:    event,
+		handler: handler,
+	})
+}
+
+func (c *actorContext) Off(event string) {
+	if c.grainContext == nil || event == "" {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &eventUnregister{name: event})
+}
+
+func (c *actorContext) Emit(event string, payload any) {
+	if c.grainContext == nil || event == "" {
+		return
+	}
+	c.grainContext.Send(c.grainContext.Self(), &eventEmit{
+		name:    event,
+		payload: payload,
+	})
 }

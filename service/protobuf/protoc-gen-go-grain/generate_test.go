@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -90,6 +92,11 @@ func TestGenerateGrainactorOptions(t *testing.T) {
 }
 
 func TestGenerateGrainactorSplitFiles(t *testing.T) {
+	pluginPath := buildProtocGenGoGrainPlugin(t)
+	t.Cleanup(func() {
+		_ = os.Remove(pluginPath)
+	})
+
 	_ = os.Remove("test/grainactor/grainactor_grain_client.pb.go")
 	_ = os.Remove("test/grainactor/grainactor_grain_server.pb.go")
 	_ = os.Remove("test/grainactor/grain_client_init.pb.go")
@@ -97,7 +104,7 @@ func TestGenerateGrainactorSplitFiles(t *testing.T) {
 	cmd := exec.Command("protoc",
 		"--go_out=.",
 		"--go_opt=paths=source_relative",
-		"--plugin=protoc-gen-go-grain=protoc-gen-go-grain.sh",
+		"--plugin=protoc-gen-go-grain="+pluginPath,
 		"--go-grain_out=.",
 		"--go-grain_opt=paths=source_relative",
 		"-I../../..",
@@ -730,6 +737,26 @@ func TestSetClusterImportPathFromParameter(t *testing.T) {
 	if clusterImportPath != serviceClusterImportPath {
 		t.Fatalf("clusterImportPath = %q, want %q", clusterImportPath, serviceClusterImportPath)
 	}
+}
+
+func buildProtocGenGoGrainPlugin(t *testing.T) string {
+	t.Helper()
+
+	pluginName := "protoc-gen-go-grain"
+	if runtime.GOOS == "windows" {
+		pluginName += ".exe"
+	}
+	pluginPath, err := filepath.Abs(pluginName)
+	if err != nil {
+		t.Fatalf("resolve plugin path: %v", err)
+	}
+
+	build := exec.Command("go", "build", "-o", pluginPath, ".")
+	build.Dir = "."
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build protoc plugin: %v\n%s", err, out)
+	}
+	return pluginPath
 }
 
 func requireContains(t *testing.T, haystack string, needle string) {
