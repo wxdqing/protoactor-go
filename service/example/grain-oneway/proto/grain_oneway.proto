@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package grainoneway;
 
-import "service/protobuf/protoc-gen-go-grain/options/options.proto";
+import "options/options.proto";
 
 option go_package = "github.com/asynkron/protoactor-go/service/example/grain-oneway/proto";
 option (options.actor_base) = {

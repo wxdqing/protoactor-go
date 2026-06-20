@@ -7,7 +7,7 @@
 package proto
 
 import (
-	_ "github.com/asynkron/protoactor-go/service/protobuf/protoc-gen-go-grain/options"
+	_ "gitee.com/wxdqing/protoc-gen-go-grain/options"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -114,7 +114,7 @@ var File_service_example_grain_oneway_proto_grain_oneway_proto protoreflect.File
 
 const file_service_example_grain_oneway_proto_grain_oneway_proto_rawDesc = "" +
 	"\n" +
-	"5service/example/grain-oneway/proto/grain_oneway.proto\x12\vgrainoneway\x1a:service/protobuf/protoc-gen-go-grain/options/options.proto\"*\n" +
+	"5service/example/grain-oneway/proto/grain_oneway.proto\x12\vgrainoneway\x1a\x15options/options.proto\"*\n" +
 	"\vPingRequest\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\x04R\bserverId\"/\n" +
 	"\fPingResponse\x12\x1f\n" +

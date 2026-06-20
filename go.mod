@@ -1,8 +1,9 @@
 module github.com/asynkron/protoactor-go
 
-go 1.26.2
+go 1.26.3
 
 require (
+	gitee.com/wxdqing/protoc-gen-go-grain v0.0.0
 	github.com/Workiva/go-datastructures v1.1.7
 	github.com/asynkron/gofun v0.0.0-20220329210725-34fed760f4c2
 	github.com/couchbase/gocb v1.6.7
@@ -146,3 +147,5 @@ require (
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+replace gitee.com/wxdqing/protoc-gen-go-grain => ../../tools/source/protoc-gen-go-grain
