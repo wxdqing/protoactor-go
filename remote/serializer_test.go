@@ -5,6 +5,8 @@ import (
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 //func TestJsonSerializer_round_trip(t *testing.T) {
@@ -54,6 +56,27 @@ func TestProtobufSerializer_Serialize_PID(t *testing.T) {
 	typed := res.(*actor.PID)
 	assert.Equal(t, "actor.PID", typeName)
 	assert.True(t, m.Equal(typed))
+}
+
+func TestJSONSerializer_RoundTripGoogleProtobufMessage(t *testing.T) {
+	m := &ActorPidRequest{
+		Kind: "worker",
+		Name: "alpha",
+	}
+
+	b, typeName, err := Serialize(m, 1)
+	require.NoError(t, err)
+	require.Equal(t, "remote.ActorPidRequest", typeName)
+
+	withUnknownField := append([]byte{}, b[:len(b)-1]...)
+	withUnknownField = append(withUnknownField, []byte(`,"ignored":true}`)...)
+
+	res, err := Deserialize(withUnknownField, typeName, 1)
+	require.NoError(t, err)
+
+	typed, ok := res.(*ActorPidRequest)
+	require.True(t, ok)
+	require.True(t, proto.Equal(m, typed))
 }
 
 func TestSerialize_InvalidSerializerID(t *testing.T) {
