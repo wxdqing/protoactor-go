@@ -85,7 +85,7 @@ func (pa *providerActor) running(ctx actor.Context) {
 		if pa.refreshCanceller != nil {
 			pa.refreshCanceller()
 		}
-		if err := pa.deregisterService(); err != nil {
+		if err := pa.DeregisterMember(); err != nil {
 			ctx.Logger().Error("Failed to deregister service from consul", slog.Any("error", err))
 		} else {
 			ctx.Logger().Info("De-registered service from consul")

@@ -155,12 +155,20 @@ func (p *Provider) StartClient(c *cluster.Cluster) error {
 
 // DeregisterMember removes the provider's service registration from Consul.
 func (p *Provider) DeregisterMember() error {
-	err := p.deregisterService()
-	if err != nil {
-		fmt.Println(err)
-		return err
+	p.stateMu.Lock()
+	if p.deregistered {
+		p.stateMu.Unlock()
+		return nil
 	}
 	p.deregistered = true
+	p.stateMu.Unlock()
+	err := p.deregisterService()
+	if err != nil {
+		p.stateMu.Lock()
+		p.deregistered = false
+		p.stateMu.Unlock()
+		return err
+	}
 	return nil
 }
 

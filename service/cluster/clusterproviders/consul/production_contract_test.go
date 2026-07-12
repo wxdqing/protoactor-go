@@ -13,11 +13,12 @@ import (
 )
 
 type consulAPIFixture struct {
-	mu           sync.Mutex
-	registration api.AgentServiceRegistration
-	registerCode int
-	ttlCode      int
-	passingQuery string
+	mu              sync.Mutex
+	registration    api.AgentServiceRegistration
+	registerCode    int
+	ttlCode         int
+	passingQuery    string
+	deregisterCalls int
 }
 
 func (f *consulAPIFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -50,9 +51,38 @@ func (f *consulAPIFixture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Consul-Index", "1")
 		_, _ = w.Write([]byte("[]"))
 	case r.Method == http.MethodPut && len(r.URL.Path) >= len("/v1/agent/service/deregister/") && r.URL.Path[:len("/v1/agent/service/deregister/")] == "/v1/agent/service/deregister/":
+		f.mu.Lock()
+		f.deregisterCalls++
+		f.mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	default:
 		http.Error(w, r.Method+" "+r.URL.EscapedPath(), http.StatusNotFound)
+	}
+}
+
+func TestDeregisterMemberAndShutdownDeregisterOnce(t *testing.T) {
+	fixture := &consulAPIFixture{}
+	server := httptest.NewServer(fixture)
+	t.Cleanup(server.Close)
+	p, err := NewWithConfig(testConsulConfig(t, server.URL), WithRefreshTTL(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cluster := newClusterForTest("deregister-once", "127.0.0.1:8010", p)
+	if err := p.StartMember(cluster); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.DeregisterMember(); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Shutdown(true); err != nil {
+		t.Fatal(err)
+	}
+	fixture.mu.Lock()
+	calls := fixture.deregisterCalls
+	fixture.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("deregister calls=%d want 1", calls)
 	}
 }
 
