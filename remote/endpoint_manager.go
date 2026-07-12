@@ -117,7 +117,6 @@ func (em *endpointManager) stop() {
 		em.remote.Logger().Error("stop endpoint supervisor failed", slog.Any("error", err))
 	}
 	em.endpointSub = nil
-	em.connections = nil
 	if em.endpointReaderConnections != nil {
 		em.endpointReaderConnections.Range(func(key interface{}, value interface{}) bool {
 			channel := value.(chan bool)

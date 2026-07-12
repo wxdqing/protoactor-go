@@ -2,7 +2,6 @@ package remote
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"time"
@@ -12,7 +11,6 @@ import (
 	"github.com/asynkron/protoactor-go/actor"
 	remotemetrics "github.com/asynkron/protoactor-go/remote/metrics"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/grpclog"
 )
 
 var extensionID = extensions.NextExtensionID()
@@ -71,7 +69,6 @@ func (r *Remote) BlockList() *BlockList { return r.blocklist }
 
 // Start the remote server.
 func (r *Remote) Start() {
-	grpclog.SetLoggerV2(grpclog.NewLoggerV2(io.Discard, io.Discard, io.Discard))
 	lis, err := net.Listen("tcp", r.config.Address())
 	if err != nil {
 		panic(fmt.Errorf("failed to listen: %v", err))
