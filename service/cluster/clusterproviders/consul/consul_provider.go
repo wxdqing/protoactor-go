@@ -41,6 +41,23 @@ type Provider struct {
 	clusterError       error
 	pid                *actor.PID
 	consulConfig       *api.Config
+	startTimeout       time.Duration
+	serviceMetadata    map[string]string
+	stateMu            sync.RWMutex
+	leaseGrant         ConsulLeaseGrant
+	health             HealthState
+}
+
+// ConsulLeaseGrant is the local conservative authorization from a successful TTL refresh.
+type ConsulLeaseGrant struct {
+	ValidUntil time.Time
+}
+
+// HealthState describes the latest Consul provider operation.
+type HealthState struct {
+	Healthy     bool
+	LastSuccess time.Time
+	Err         error
 }
 
 // New creates a new Consul provider with default configuration.
@@ -60,6 +77,7 @@ func NewWithConfig(consulConfig *api.Config, opts ...Option) (*Provider, error) 
 		refreshTTL:         1 * time.Second,
 		deregisterCritical: 60 * time.Second,
 		blockingWaitTime:   20 * time.Second,
+		startTimeout:       10 * time.Second,
 		consulConfig:       consulConfig,
 	}
 	for _, opt := range opts {
@@ -94,15 +112,33 @@ func (p *Provider) StartMember(c *cluster.Cluster) error {
 		return err
 	}
 
+	ready := make(chan error, 1)
 	p.pid, err = c.ActorSystem.Root.SpawnNamed(actor.PropsFromProducer(func() actor.Actor {
-		return newProviderActor(p)
+		return newProviderActor(p, ready)
 	}), "consul-provider")
 	if err != nil {
 		p.cluster.Logger().Error("Failed to start consul-provider actor", slog.Any("error", err))
 		return err
 	}
 
-	return nil
+	timer := time.NewTimer(p.startTimeout)
+	defer timer.Stop()
+	select {
+	case err := <-ready:
+		if err != nil {
+			_ = c.ActorSystem.Root.StopFuture(p.pid).Wait()
+			p.pid = nil
+			_ = p.deregisterService()
+		}
+		return err
+	case <-timer.C:
+		_ = c.ActorSystem.Root.StopFuture(p.pid).Wait()
+		p.pid = nil
+		_ = p.deregisterService()
+		err := fmt.Errorf("consul provider start timed out after %s", p.startTimeout)
+		p.setHealth(err)
+		return err
+	}
 }
 
 // StartClient connects the provider to Consul without registering the node as a member.
@@ -110,7 +146,9 @@ func (p *Provider) StartClient(c *cluster.Cluster) error {
 	if err := p.init(c); err != nil {
 		return err
 	}
-	p.blockingStatusChange()
+	if err := p.notifyStatuses(); err != nil {
+		return err
+	}
 	p.monitorMemberStatusChanges()
 	return nil
 }
@@ -128,10 +166,13 @@ func (p *Provider) DeregisterMember() error {
 
 // Shutdown stops the provider and its internal actor.
 func (p *Provider) Shutdown(_ bool) error {
+	p.stateMu.Lock()
 	if p.shutdown {
+		p.stateMu.Unlock()
 		return nil
 	}
 	p.shutdown = true
+	p.stateMu.Unlock()
 	if p.pid != nil {
 		if err := p.cluster.ActorSystem.Root.StopFuture(p.pid).Wait(); err != nil {
 			p.cluster.Logger().Error("Failed to stop consul-provider actor", slog.Any("error", err))
@@ -143,20 +184,30 @@ func (p *Provider) Shutdown(_ bool) error {
 }
 
 func blockingUpdateTTL(p *Provider) error {
-	p.clusterError = p.client.Agent().UpdateTTL("service:"+p.id, "", api.HealthPassing)
-	return p.clusterError
+	requestStart := time.Now()
+	err := p.client.Agent().UpdateTTL("service:"+p.id, "", api.HealthPassing)
+	p.clusterError = err
+	if err != nil {
+		p.setHealth(err)
+		return err
+	}
+	p.stateMu.Lock()
+	p.leaseGrant = ConsulLeaseGrant{ValidUntil: requestStart.Add(p.ttl)}
+	p.health = HealthState{Healthy: true, LastSuccess: time.Now()}
+	p.stateMu.Unlock()
+	return nil
 }
 
 func (p *Provider) registerService() error {
+	metadata := cloneMetadata(p.serviceMetadata)
+	metadata["id"] = p.id
 	s := &api.AgentServiceRegistration{
 		ID:      p.id,
 		Name:    p.clusterName,
 		Tags:    p.knownKinds,
 		Address: p.address,
 		Port:    p.port,
-		Meta: map[string]string{
-			"id": p.id,
-		},
+		Meta:    metadata,
 		Check: &api.AgentServiceCheck{
 			DeregisterCriticalServiceAfter: p.deregisterCritical.String(),
 			TTL:                            p.ttl.String(),
@@ -170,12 +221,8 @@ func (p *Provider) deregisterService() error {
 }
 
 // call this directly after registering the service
-func (p *Provider) blockingStatusChange() {
-	p.notifyStatuses()
-}
-
-func (p *Provider) notifyStatuses() {
-	statuses, meta, err := p.client.Health().Service(p.clusterName, "", false, &api.QueryOptions{
+func (p *Provider) notifyStatuses() error {
+	statuses, meta, err := p.client.Health().Service(p.clusterName, "", true, &api.QueryOptions{
 		WaitIndex: p.index,
 		WaitTime:  p.blockingWaitTime,
 	})
@@ -183,39 +230,80 @@ func (p *Provider) notifyStatuses() {
 
 	if err != nil {
 		p.cluster.Logger().Error("notifyStatues", slog.Any("error", err))
-		return
+		p.setHealth(err)
+		return err
 	}
 	p.index = meta.LastIndex
 
-	var members []*cluster.Member
-	for _, v := range statuses {
-		if len(v.Checks) > 0 && v.Checks.AggregatedStatus() == api.HealthPassing {
-			memberID := v.Service.Meta["id"]
-			if memberID == "" {
-				memberID = fmt.Sprintf("%v@%v:%v", p.clusterName, v.Service.Address, v.Service.Port)
-				p.cluster.Logger().Info("meta['id'] was empty, fixeds", slog.String("id", memberID))
-			}
-			members = append(members, &cluster.Member{
-				Id:    memberID,
-				Name:  p.clusterName,
-				Host:  v.Service.Address,
-				Port:  int32(v.Service.Port),
-				Kinds: v.Service.Tags,
-			})
-		}
-	}
+	members := passingMembers(p.clusterName, statuses)
 	// the reason why we want this in a batch and not as individual messages is that
 	// if we have an atomic batch, we can calculate what nodes have left the cluster
 	// passing events one by one, we can't know if someone left or just haven't changed status for a long time
 
 	// publish the current cluster topology onto the event stream
 	p.cluster.MemberList.UpdateClusterTopology(members)
+	p.stateMu.Lock()
+	p.health = HealthState{Healthy: true, LastSuccess: time.Now()}
+	p.stateMu.Unlock()
+	return nil
 }
 
 func (p *Provider) monitorMemberStatusChanges() {
 	go func() {
-		for !p.shutdown {
-			p.notifyStatuses()
+		for !p.isShutdown() {
+			if err := p.notifyStatuses(); err != nil {
+				time.Sleep(min(p.refreshTTL, time.Second))
+			}
 		}
 	}()
+}
+
+// LeaseGrant returns the latest successful local TTL authorization.
+func (p *Provider) LeaseGrant() (ConsulLeaseGrant, bool) {
+	p.stateMu.RLock()
+	defer p.stateMu.RUnlock()
+	return p.leaseGrant, p.health.Healthy && !p.leaseGrant.ValidUntil.IsZero()
+}
+
+// Health returns a snapshot of provider health.
+func (p *Provider) Health() HealthState {
+	p.stateMu.RLock()
+	defer p.stateMu.RUnlock()
+	return p.health
+}
+
+func (p *Provider) setHealth(err error) {
+	p.stateMu.Lock()
+	p.health.Healthy = false
+	p.health.Err = err
+	p.stateMu.Unlock()
+}
+
+func (p *Provider) isShutdown() bool {
+	p.stateMu.RLock()
+	defer p.stateMu.RUnlock()
+	return p.shutdown
+}
+
+func passingMembers(clusterName string, entries []*api.ServiceEntry) []*cluster.Member {
+	members := make([]*cluster.Member, 0, len(entries))
+	for _, entry := range entries {
+		if len(entry.Checks) == 0 || entry.Checks.AggregatedStatus() != api.HealthPassing {
+			continue
+		}
+		memberID := entry.Service.Meta["id"]
+		if memberID == "" {
+			memberID = fmt.Sprintf("%v@%v:%v", clusterName, entry.Service.Address, entry.Service.Port)
+		}
+		members = append(members, &cluster.Member{Id: memberID, Name: clusterName, Host: entry.Service.Address, Port: int32(entry.Service.Port), Kinds: entry.Service.Tags})
+	}
+	return members
+}
+
+func cloneMetadata(metadata map[string]string) map[string]string {
+	cloned := make(map[string]string, len(metadata)+1)
+	for key, value := range metadata {
+		cloned[key] = value
+	}
+	return cloned
 }

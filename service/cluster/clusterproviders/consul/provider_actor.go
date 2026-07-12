@@ -2,8 +2,9 @@
 package consul
 
 import (
-	"fmt"
 	"log/slog"
+	"sync"
+	"time"
 
 	"github.com/asynkron/protoactor-go/actor"
 	"github.com/asynkron/protoactor-go/scheduler"
@@ -16,6 +17,8 @@ type providerActor struct {
 	*Provider
 	actor.Behavior
 	refreshCanceller scheduler.CancelFunc
+	ready            chan<- error
+	readyOnce        sync.Once
 }
 
 type (
@@ -34,10 +37,11 @@ func (pa *providerActor) Receive(ctx actor.Context) {
 	pa.Behavior.Receive(ctx)
 }
 
-func newProviderActor(provider *Provider) actor.Actor {
+func newProviderActor(provider *Provider, ready chan<- error) actor.Actor {
 	pa := &providerActor{
 		Behavior: actor.NewBehavior(),
 		Provider: provider,
+		ready:    ready,
 	}
 	pa.Become(pa.init)
 	return pa
@@ -49,14 +53,21 @@ func (pa *providerActor) init(ctx actor.Context) {
 		ctx.Send(ctx.Self(), &RegisterService{})
 	case *RegisterService:
 		if err := pa.registerService(); err != nil {
-			ctx.Logger().Error("Failed to register service to consul, will retry", slog.Any("error", err))
-			ctx.Send(ctx.Self(), &RegisterService{})
+			ctx.Logger().Error("Failed to register service to consul", slog.Any("error", err))
+			pa.signalReady(err)
 		} else {
 			ctx.Logger().Info("Registered service to consul")
+			if err := blockingUpdateTTL(pa.Provider); err != nil {
+				pa.signalReady(err)
+				return
+			}
 			refreshScheduler := scheduler.NewTimerScheduler(ctx)
-			pa.refreshCanceller = refreshScheduler.SendRepeatedly(0, pa.refreshTTL, ctx.Self(), &UpdateTTL{})
+			pa.refreshCanceller = refreshScheduler.SendRepeatedly(pa.refreshTTL, pa.refreshTTL, ctx.Self(), &UpdateTTL{})
 			if err := pa.startWatch(ctx); err == nil {
 				pa.Become(pa.running)
+				pa.signalReady(nil)
+			} else {
+				pa.signalReady(err)
 			}
 		}
 	}
@@ -71,7 +82,9 @@ func (pa *providerActor) running(ctx actor.Context) {
 	case *MemberListUpdated:
 		pa.cluster.MemberList.UpdateClusterTopology(msg.members)
 	case *actor.Stopping:
-		pa.refreshCanceller()
+		if pa.refreshCanceller != nil {
+			pa.refreshCanceller()
+		}
 		if err := pa.deregisterService(); err != nil {
 			ctx.Logger().Error("Failed to deregister service from consul", slog.Any("error", err))
 		} else {
@@ -84,7 +97,7 @@ func (pa *providerActor) startWatch(ctx actor.Context) error {
 	params := make(map[string]interface{})
 	params["type"] = "service"
 	params["service"] = pa.clusterName
-	params["passingonly"] = false
+	params["passingonly"] = true
 	plan, err := watch.Parse(params)
 	if err != nil {
 		ctx.Logger().Error("Failed to parse consul watch definition", slog.Any("error", err))
@@ -95,9 +108,14 @@ func (pa *providerActor) startWatch(ctx actor.Context) error {
 	}
 
 	go func() {
-		if err = plan.RunWithConfig(pa.consulConfig.Address, pa.consulConfig); err != nil {
-			ctx.Logger().Error("Failed to start consul watch", slog.Any("error", err))
-			panic(err)
+		for !pa.isShutdown() {
+			if runErr := plan.RunWithConfig(pa.consulConfig.Address, pa.consulConfig); runErr != nil {
+				pa.setHealth(runErr)
+				ctx.Logger().Error("Consul watch stopped", slog.Any("error", runErr))
+			}
+			if !pa.isShutdown() {
+				time.Sleep(min(pa.refreshTTL, time.Second))
+			}
 		}
 	}()
 
@@ -110,29 +128,10 @@ func (pa *providerActor) processConsulUpdate(index uint64, result interface{}, c
 		ctx.Logger().Warn("Didn't get expected data from consul watch")
 		return
 	}
-	var members []*cluster.Member
-	for _, v := range serviceEntries {
-		if len(v.Checks) > 0 && v.Checks.AggregatedStatus() == api.HealthPassing {
-			memberID := v.Service.Meta["id"]
-			if memberID == "" {
-				memberID = fmt.Sprintf("%v@%v:%v", pa.clusterName, v.Service.Address, v.Service.Port)
-				ctx.Logger().Info("meta['id'] was empty, fixed", slog.String("id", memberID))
-			}
-			members = append(members, &cluster.Member{
-				Id:    memberID,
-				Name:  pa.clusterName,
-				Host:  v.Service.Address,
-				Port:  int32(v.Service.Port),
-				Kinds: v.Service.Tags,
-			})
-		}
-	}
+	members := passingMembers(pa.clusterName, serviceEntries)
+	ctx.Send(ctx.Self(), &MemberListUpdated{members: members, index: index})
+}
 
-	// delay the fist update until there is at least one member
-	if len(members) > 0 {
-		ctx.Send(ctx.Self(), &MemberListUpdated{
-			members: members,
-			index:   index,
-		})
-	}
+func (pa *providerActor) signalReady(err error) {
+	pa.readyOnce.Do(func() { pa.ready <- err })
 }

@@ -18,3 +18,17 @@ func WithRefreshTTL(refreshTTL time.Duration) Option {
 		p.refreshTTL = refreshTTL
 	}
 }
+
+// WithStartTimeout limits how long StartMember waits for Consul readiness.
+func WithStartTimeout(timeout time.Duration) Option {
+	return func(p *Provider) {
+		p.startTimeout = timeout
+	}
+}
+
+// WithServiceMetadata adds application metadata to the Consul registration.
+func WithServiceMetadata(metadata map[string]string) Option {
+	return func(p *Provider) {
+		p.serviceMetadata = cloneMetadata(metadata)
+	}
+}
