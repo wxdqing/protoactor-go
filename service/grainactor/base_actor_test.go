@@ -35,7 +35,7 @@ func TestBaseActorDelegatesMethodIndexRequestToHandler(t *testing.T) {
 	handler := &fakeHandler{methodIndex: 7}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", handler)
+		return NewBaseActor("player_equip", handler)
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{
@@ -65,7 +65,7 @@ func TestBaseActorDelegatesMethodIndexRequestToHandler(t *testing.T) {
 func TestBaseActorReturnsHandlerErrorForUnknownMethodIndex(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &fakeHandler{methodIndex: 7})
+		return NewBaseActor("player_equip", &fakeHandler{methodIndex: 7})
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{
@@ -92,7 +92,7 @@ func TestBaseActorSkipsRespondForOneWayRequest(t *testing.T) {
 	handler := &fakeHandler{methodIndex: 7}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", handler)
+		return NewBaseActor("player_equip", handler)
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{
@@ -114,7 +114,7 @@ func TestBaseActorSkipsRespondForOneWayRequest(t *testing.T) {
 func TestBaseActorRecoversHandlerPanic(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &fakeHandler{panic: true})
+		return NewBaseActor("player_equip", &fakeHandler{panic: true})
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{

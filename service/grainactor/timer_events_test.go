@@ -34,7 +34,7 @@ func TestContextAfterTimerFiresInsideMailbox(t *testing.T) {
 	handler := &timerHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player", handler)
+		return NewBaseActor("player", handler)
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{
@@ -56,7 +56,7 @@ func TestContextEveryTimerCanBeCancelled(t *testing.T) {
 	handler := &timerHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player", handler)
+		return NewBaseActor("player", handler)
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{
@@ -92,7 +92,7 @@ func TestContextEventEmitDispatchesHandlers(t *testing.T) {
 	handler := &eventHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player", handler)
+		return NewBaseActor("player", handler)
 	}))
 
 	system.Root.Send(pid, &cluster.ClusterInit{

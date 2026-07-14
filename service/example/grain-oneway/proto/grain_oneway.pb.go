@@ -119,11 +119,9 @@ const file_service_example_grain_oneway_proto_grain_oneway_proto_rawDesc = "" +
 	"\tserver_id\x18\x01 \x01(\x04R\bserverId\"/\n" +
 	"\fPingResponse\x12\x1f\n" +
 	"\vserver_time\x18\x01 \x01(\x03R\n" +
-	"serverTime2Y\n" +
+	"serverTime2c\n" +
 	"\x06Player\x12C\n" +
-	"\x04Ping\x12\x18.grainoneway.PingRequest\x1a\x19.grainoneway.PingResponse\"\x06\x82\xb5\x18\x02\x18\x01\x1a\n" +
-	"\x82\xb5\x18\x06playerBq\x82\xb5\x18'\n" +
-	"\x06player\x12\fplayer_equip\x1a\x04game\"\tserver_idZDgithub.com/asynkron/protoactor-go/service/example/grain-oneway/protob\x06proto3"
+	"\x04Ping\x12\x18.grainoneway.PingRequest\x1a\x19.grainoneway.PingResponse\"\x06\x82\xb5\x18\x02\x18\x01\x1a\x14\x82\xb5\x18\x06player\x8a\xb5\x18\x06playerBFZDgithub.com/asynkron/protoactor-go/service/example/grain-oneway/protob\x06proto3"
 
 var (
 	file_service_example_grain_oneway_proto_grain_oneway_proto_rawDescOnce sync.Once

@@ -56,7 +56,7 @@ func (h *activeCloseHandler) Receive(ctx Context, _ *cluster.GrainRequest) (prot
 func TestBDDGivenUnboundActorWhenGrainRequestThenReturnsPeerSessionNotBound(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -76,7 +76,7 @@ func TestBDDGivenUnboundActorWhenGrainRequestThenReturnsPeerSessionNotBound(t *t
 func TestBDDGivenWrongIdentityWhenBindThenReturnsIdentityMismatch(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -89,7 +89,7 @@ func TestBDDGivenWrongIdentityWhenBindThenReturnsIdentityMismatch(t *testing.T) 
 func TestBDDGivenNilSessionWhenBindThenReturnsNotBoundError(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -103,7 +103,7 @@ func TestBDDGivenStateImplementsPeerSessionReceiverWhenBindThenNotifiesState(t *
 	state := &statePeerSessionReceiver{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{}, WithState(state))
+		return NewBaseActor("player_equip", &peerSessionHandler{}, WithState(state))
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -119,7 +119,7 @@ func TestBDDGivenStateImplementsPeerSessionReceiverWhenBindThenNotifiesState(t *
 func TestBDDGivenHandlerUsesToContextWhenBoundThenPeerSessionIsAvailable(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &toContextPeerSessionHandler{})
+		return NewBaseActor("player_equip", &toContextPeerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -143,7 +143,7 @@ func TestBDDGivenHandlerUsesToContextWhenBoundThenPeerSessionIsAvailable(t *test
 func TestBDDGivenBoundSessionWhenHandlerClosesThenSessionReceivesReason(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &activeCloseHandler{})
+		return NewBaseActor("player_equip", &activeCloseHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -167,7 +167,7 @@ func TestBDDGivenBoundSessionWhenHandlerClosesThenSessionReceivesReason(t *testi
 func TestBDDGivenStoppedActorWhenBindThenRejectsBinding(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -184,7 +184,7 @@ func TestBDDGivenStoppedActorWhenBindThenRejectsBinding(t *testing.T) {
 func TestBDDGivenBoundSessionWhenClearedThenPeerSessionFromContextIsMissing(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -196,7 +196,7 @@ func TestBDDGivenBoundSessionWhenClearedThenPeerSessionFromContextIsMissing(t *t
 		t.Fatal(err)
 	}
 
-	actorCtx := newContext(context.Background(), nil, "player-1", "player_equip", "player", nil, func() PeerSession { return nil })
+	actorCtx := newContext(context.Background(), nil, "player-1", "player", nil, func() PeerSession { return nil })
 	handlerCtx := ToContext(actorCtx)
 	if got, ok := PeerSessionFromContext(handlerCtx); ok || got != nil {
 		t.Fatalf("PeerSessionFromContext = %#v, %v; want nil, false", got, ok)

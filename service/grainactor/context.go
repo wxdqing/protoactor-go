@@ -19,7 +19,7 @@ type Context interface {
 	GrainContext() cluster.GrainContext
 	Identity() string
 	Kind() string
-	Actor() string
+	Module() string
 	State() any
 	PeerSession() (PeerSession, bool)
 
@@ -43,23 +43,38 @@ type actorContext struct {
 	grainContext cluster.GrainContext
 	identity     string
 	kind         string
-	actor        string
 	state        any
 	peerSession  func() PeerSession
 }
 
-func newContext(parent context.Context, grainContext cluster.GrainContext, identity, kind, actor string, state any, peerSession func() PeerSession) Context {
+func newContext(parent context.Context, grainContext cluster.GrainContext, identity, kind string, state any, peerSession func() PeerSession) Context {
 	ctx := &actorContext{
 		Context:      parent,
 		grainContext: grainContext,
 		identity:     identity,
 		kind:         kind,
-		actor:        actor,
 		state:        state,
 		peerSession:  peerSession,
 	}
 	ctx.Context = context.WithValue(parent, contextKey{}, ctx)
 	return ctx
+}
+
+type moduleContext struct {
+	Context
+	parent context.Context
+	module string
+}
+
+func (c *moduleContext) Deadline() (time.Time, bool) { return c.parent.Deadline() }
+func (c *moduleContext) Done() <-chan struct{}       { return c.parent.Done() }
+func (c *moduleContext) Err() error                  { return c.parent.Err() }
+
+func (c *moduleContext) Value(key any) any {
+	if key == (contextKey{}) {
+		return c
+	}
+	return c.parent.Value(key)
 }
 
 // FromContext returns the grain actor context stored in ctx, if present.
@@ -86,6 +101,17 @@ func ToContext(ctx Context, opts ...ToContextOption) context.Context {
 func WithValue(key any, value any) ToContextOption {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, key, value)
+	}
+}
+
+// WithModule associates a generated service module with one handler call.
+func WithModule(module string) ToContextOption {
+	return func(ctx context.Context) context.Context {
+		actorCtx := FromContext(ctx)
+		if actorCtx == nil {
+			return ctx
+		}
+		return &moduleContext{Context: actorCtx, parent: ctx, module: module}
 	}
 }
 
@@ -124,9 +150,13 @@ func (c *actorContext) Kind() string {
 	return c.kind
 }
 
-// Actor returns the logical actor group name.
-func (c *actorContext) Actor() string {
-	return c.actor
+// Module returns the current generated service module.
+func (c *actorContext) Module() string {
+	return ""
+}
+
+func (c *moduleContext) Module() string {
+	return c.module
 }
 
 // State returns the shared actor state.

@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 GRAIN_ROOT="${PROTOC_GEN_GO_GRAIN_ROOT:-$ROOT/../../tools/source/protoc-gen-go-grain}"
 MODULE="github.com/asynkron/protoactor-go"
-PROTO="$ROOT/service/example/grain-oneway/proto/grain_oneway.proto"
+PROTO_DIR="$ROOT/service/example/grain-oneway/proto"
+PROTOS=("$PROTO_DIR/actor_base.proto" "$PROTO_DIR/grain_oneway.proto")
 
 resolve_plugin() {
   local plugin=""
@@ -49,4 +50,4 @@ protoc \
   --go-grain_out=. --go-grain_opt=module="$MODULE" \
   --go-grain_opt=cluster_import="$MODULE/service/cluster" \
   -I"$ROOT" -I"$GRAIN_ROOT" \
-  "$PROTO"
+  "${PROTOS[@]}"

@@ -13,11 +13,11 @@ import (
 	slog "log/slog"
 )
 
-const ActorKindNamePlayer = "player_equip"
-const ActorNodeTypePlayer = "game"
-const ActorGroupNamePlayer = "player"
+const GrainKindNamePlayer = "player"
+const GrainNodeTypePlayer = "game"
+const GrainModuleNamePlayer = "player"
 
-// GetPlayerGrainClient instantiates a new PlayerGrainClient with given Identity
+// GetPlayerGrainClient instantiates a new PlayerGrainClient with the given identity.
 func GetPlayerGrainClient(c *cluster.Cluster, id string) *PlayerGrainClient {
 	if c == nil {
 		panic(fmt.Errorf("nil cluster instance"))
@@ -28,27 +28,38 @@ func GetPlayerGrainClient(c *cluster.Cluster, id string) *PlayerGrainClient {
 	return &PlayerGrainClient{Identity: id, cluster: c}
 }
 
-// PlayerGrainClient holds the base data for the PlayerGrain
+// PlayerGrainClient holds the base data for the Player grain.
 type PlayerGrainClient struct {
 	Identity string
 	cluster  *cluster.Cluster
 }
 
-// BasePlayerGrainClient provides shared cluster access and default call options for Player grains.
+// BasePlayerGrainClient provides shared cluster access and default call options.
 type BasePlayerGrainClient struct {
 	ClusterFn func() *cluster.Cluster
 	Opts      []cluster.GrainCallOption
 }
 
-// NewBasePlayerGrainClient creates a BasePlayerGrainClient with default call options.
+// NewBasePlayerGrainClient creates a base client with default call options.
 func NewBasePlayerGrainClient(c func() *cluster.Cluster, opts ...cluster.GrainCallOption) *BasePlayerGrainClient {
 	return &BasePlayerGrainClient{ClusterFn: c, Opts: opts}
 }
 
-// PingSend delivers a one-way grain message without waiting for a response.
-func (h *BasePlayerGrainClient) PingSend(identity string, r *PingRequest, opts ...cluster.GrainCallOption) error {
-	cli := GetPlayerGrainClient(h.ClusterFn(), identity)
-	return cli.PingSend(identity, r, h.mergeOpts(opts)...)
+func normalizePlayerPlacementContext(placementContext *cluster.PlacementContext) (*cluster.PlacementContext, error) {
+	if placementContext == nil {
+		return &cluster.PlacementContext{NodeType: GrainNodeTypePlayer}, nil
+	}
+	if placementContext.NodeType != "" && placementContext.NodeType != GrainNodeTypePlayer {
+		return nil, fmt.Errorf("placement node type %q does not match kind %q node type %q", placementContext.NodeType, GrainKindNamePlayer, GrainNodeTypePlayer)
+	}
+	cloned := *placementContext
+	cloned.NodeType = GrainNodeTypePlayer
+	return &cloned, nil
+}
+
+// PingSend delivers a one-way grain message.
+func (h *BasePlayerGrainClient) PingSend(identity string, placementContext *cluster.PlacementContext, r *PingRequest, opts ...cluster.GrainCallOption) error {
+	return GetPlayerGrainClient(h.ClusterFn(), identity).PingSend(placementContext, r, h.mergeOpts(opts)...)
 }
 
 func (h *BasePlayerGrainClient) mergeOpts(opts []cluster.GrainCallOption) []cluster.GrainCallOption {
@@ -57,52 +68,23 @@ func (h *BasePlayerGrainClient) mergeOpts(opts []cluster.GrainCallOption) []clus
 	}
 	merged := make([]cluster.GrainCallOption, 0, len(h.Opts)+len(opts))
 	merged = append(merged, h.Opts...)
-	merged = append(merged, opts...)
-	return merged
+	return append(merged, opts...)
 }
 
-// PingSend delivers a one-way grain message without waiting for a response.
-func (g *PlayerGrainClient) PingSend(identity string, r *PingRequest, opts ...cluster.GrainCallOption) error {
-	routeKey, err := routeKeyFromServerIDOptions(opts)
+// PingSend delivers a one-way grain message.
+func (g *PlayerGrainClient) PingSend(placementContext *cluster.PlacementContext, r *PingRequest, opts ...cluster.GrainCallOption) error {
+	var err error
+	placementContext, err = normalizePlayerPlacementContext(placementContext)
 	if err != nil {
 		return err
 	}
-	return g.PingSendByRouteKey(identity, routeKey, r, opts...)
-}
-func (g *PlayerGrainClient) PingSendByRouteKey(identity string, routeKey uint64, r *PingRequest, opts ...cluster.GrainCallOption) error {
-	placementContext := &cluster.PlacementContext{NodeType: "game", RouteKey: routeKey}
-	return g.PingSendWithPlacementAndRouteKey(placementContext, routeKey, identity, r, opts...)
-}
-
-func (g *PlayerGrainClient) PingSendWithPlacement(placementContext *cluster.PlacementContext, identity string, r *PingRequest, opts ...cluster.GrainCallOption) error {
-	return g.PingSendWithPlacementAndRouteKey(placementContext, 0, identity, r, opts...)
-}
-
-func (g *PlayerGrainClient) PingSendWithPlacementAndRouteKey(placementContext *cluster.PlacementContext, routeKey uint64, identity string, r *PingRequest, opts ...cluster.GrainCallOption) error {
 	if g.cluster.Config.RequestLog {
-		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "Player"), slog.String("method", "Ping"), slog.Any("request", r))
+		g.cluster.Logger().Info("Sending", slog.String("identity", g.Identity), slog.String("kind", "player"), slog.String("method", "Ping"), slog.Any("request", r))
 	}
-	bytes, err := proto.Marshal(r)
+	data, err := proto.Marshal(r)
 	if err != nil {
 		return err
 	}
-	reqMsg := &cluster.GrainRequest{MethodIndex: 0, MessageData: bytes, OneWay: true, RouteKey: routeKey, HasRouteKey: true}
-	return g.cluster.Send(placementContext, identity, ActorKindNamePlayer, reqMsg, opts...)
-}
-
-// WithServerIDKey routes player actor calls by server_id.
-func WithServerIDKey(serverID uint64) cluster.GrainCallOption {
-	return cluster.WithRouteKey(serverID)
-}
-
-func routeKeyFromServerIDOptions(opts []cluster.GrainCallOption) (uint64, error) {
-	config := &cluster.GrainCallConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-	if !config.HasRouteKey {
-		return 0, fmt.Errorf("missing route key option WithServerIDKey")
-	}
-
-	return config.RouteKey, nil
+	req := &cluster.GrainRequest{MethodIndex: 0, MessageData: data, OneWay: true}
+	return g.cluster.Send(placementContext, g.Identity, GrainKindNamePlayer, req, opts...)
 }

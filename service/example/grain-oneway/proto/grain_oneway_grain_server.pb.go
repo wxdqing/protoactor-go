@@ -35,18 +35,6 @@ type playerHandler struct {
 	handler PlayerActor
 }
 
-type playerServerIDKey struct{}
-
-// GetServerIDKey returns the server_id route key from ctx.
-func GetServerIDKey(ctx context.Context) (uint64, error) {
-	serverID, ok := ctx.Value(playerServerIDKey{}).(uint64)
-	if !ok {
-		return 0, fmt.Errorf("missing route key server_id")
-	}
-
-	return serverID, nil
-}
-
 func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainRequest) (proto.Message, error) {
 	switch req.MethodIndex {
 	case 0:
@@ -57,16 +45,13 @@ func (h *playerHandler) Receive(ctx grainactor.Context, req *cluster.GrainReques
 					"argument": msg.String(),
 				})
 		}
-		if !req.HasRouteKey {
-			return nil, fmt.Errorf("missing route key server_id")
-		}
-		handlerCtx := grainactor.ToContext(ctx, grainactor.WithValue(playerServerIDKey{}, req.RouteKey))
+		handlerCtx := grainactor.ToContext(ctx, grainactor.WithModule("player"))
 		if err := h.handler.Ping(handlerCtx, msg); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	default:
-		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d", req.MethodIndex))
+		return nil, cluster.NewGrainErrorResponse(cluster.ErrorReason_NOT_FOUND, fmt.Sprintf("unknown grain method index %d for kind player", req.MethodIndex))
 	}
 }
 
@@ -74,14 +59,14 @@ func NewPlayerBaseActor(handler PlayerActor, state any, opts ...grainactor.Optio
 	if state != nil {
 		opts = append(opts, grainactor.WithState(state))
 	}
-	return grainactor.NewBaseActor("player", "player_equip", &playerHandler{handler: handler}, opts...)
+	return grainactor.NewBaseActor("player", &playerHandler{handler: handler}, opts...)
 }
 
 func NewPlayerKind(handler PlayerActor, state any, opts ...actor.PropsOption) *cluster.Kind {
 	props := actor.PropsFromProducer(func() actor.Actor {
 		return NewPlayerBaseActor(handler, state)
 	}, opts...)
-	return cluster.NewKind("player_equip", props)
+	return cluster.NewKind("player", props)
 }
 
 func respond[T proto.Message](ctx cluster.GrainContext) func(T) {

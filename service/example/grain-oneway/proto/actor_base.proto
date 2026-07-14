@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package grainoneway;
+
+import "options/options.proto";
+
+option go_package = "github.com/asynkron/protoactor-go/service/example/grain-oneway/proto";
+
+option (options.actor_base) = {
+  kind: "player"
+  node_type: "game"
+};

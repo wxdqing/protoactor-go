@@ -57,7 +57,7 @@ func TestBindPeerSessionMakesSessionAvailableFromContext(t *testing.T) {
 	handler := &peerSessionHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", handler)
+		return NewBaseActor("player_equip", handler)
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -85,7 +85,7 @@ func TestBindPeerSessionReplacesAndClosesOldSession(t *testing.T) {
 	handler := &peerSessionHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", handler)
+		return NewBaseActor("player_equip", handler)
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -120,7 +120,7 @@ func TestBindPeerSessionReplacesAndClosesOldSession(t *testing.T) {
 func TestClearPeerSessionOnlyClearsCurrentSession(t *testing.T) {
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", &peerSessionHandler{})
+		return NewBaseActor("player_equip", &peerSessionHandler{})
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 
@@ -176,7 +176,7 @@ func TestStoppedActorClearsPeerSessionAndUnregistersBinding(t *testing.T) {
 	handler := &peerSessionHandler{}
 	system := actor.NewActorSystem()
 	pid := system.Root.Spawn(actor.PropsFromProducer(func() actor.Actor {
-		return NewBaseActor("player", "player_equip", handler)
+		return NewBaseActor("player_equip", handler)
 	}))
 	initGrainActor(t, system, pid, "player-1", "player_equip")
 

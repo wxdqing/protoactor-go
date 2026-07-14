@@ -10,9 +10,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// BaseActor hosts one logical actor group and delegates grain requests to a generated handler.
+// BaseActor hosts one grain kind and delegates requests to its generated handler.
 type BaseActor struct {
-	actorName     string
 	kind          string
 	handler       Handler
 	config        config
@@ -26,14 +25,13 @@ type BaseActor struct {
 }
 
 // NewBaseActor creates a shared actor for generated grain service handlers.
-func NewBaseActor(actorName string, kind string, handler Handler, opts ...Option) actor.Actor {
+func NewBaseActor(kind string, handler Handler, opts ...Option) actor.Actor {
 	cfg := config{}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
 
 	return &BaseActor{
-		actorName:     actorName,
 		kind:          kind,
 		handler:       handler,
 		config:        cfg,
@@ -86,7 +84,7 @@ func (a *BaseActor) initialize(ctx actor.Context, msg *cluster.ClusterInit) {
 		state = a.config.stateFactory(msg.Identity.Identity)
 	}
 	a.state = state
-	a.ctx = newContext(context.Background(), grainContext, msg.Identity.Identity, a.kind, a.actorName, state, a.currentPeerSession)
+	a.ctx = newContext(context.Background(), grainContext, msg.Identity.Identity, a.kind, state, a.currentPeerSession)
 	if a.config.receiveTimeout > 0 {
 		ctx.SetReceiveTimeout(a.config.receiveTimeout)
 	}

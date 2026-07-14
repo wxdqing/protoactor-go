@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -70,9 +71,10 @@ func runGrainOnewayDemo(cfg DemoConfig) (receivedRouteKey uint64, err error) {
 	var sendErr error
 	for time.Now().Before(deadline) {
 		sendErr = client.PingSend(
-			defaultIdentity,
+			&cluster.PlacementContext{Labels: map[string]string{
+				"server_id": strconv.FormatUint(cfg.RouteKey, 10),
+			}},
 			req,
-			grainoneway.WithServerIDKey(cfg.RouteKey),
 		)
 		if sendErr == nil {
 			break
