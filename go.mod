@@ -44,12 +44,10 @@ require (
 	github.com/lmittmann/tint v1.1.3
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/tencentyun/tcaplusdb-go-sdk v0.2.3
-	github.com/wxdqing/staticrouter v0.0.0-20260527160151-22d37493bd28
 )
 
 require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/alicebob/miniredis/v2 v2.38.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.2 // indirect
 	github.com/go-openapi/swag/cmdutils v0.26.0 // indirect
 	github.com/go-openapi/swag/conv v0.26.0 // indirect

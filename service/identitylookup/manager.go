@@ -245,7 +245,7 @@ func (pm *Manager) spawnActor(clusterIdentity *clustering.ClusterIdentity, membe
 	return typed.Pid
 }
 
-func (pm *Manager) selectMember(placementContext *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity, memberID string) *types.Member {
+func (pm *Manager) selectMember(_ *cluster.PlacementContext, clusterIdentity *cluster.ClusterIdentity, memberID string) *types.Member {
 	if memberID != "" {
 		memberName, _ := ExtractSystemID(memberID)
 		pm.cluster.Logger().Info("router table member", slog.Any("member_id", memberID))
@@ -258,15 +258,6 @@ func (pm *Manager) selectMember(placementContext *cluster.PlacementContext, clus
 		pm.cluster.Logger().Warn("Failed to get member", slog.Any("member_id", memberID))
 	}
 
-	if pm.cluster.Config.StaticRouter != nil {
-		member, ok := pm.cluster.Config.StaticRouter.Route(placementContext, clusterIdentity, pm.members)
-		if !ok || member == nil {
-			pm.cluster.Logger().Warn("Failed to route member by static router", slog.Any("clusterIdentity", clusterIdentity))
-			return nil
-		}
-		return memberToStoredMember(member)
-	}
-
 	member := pm.memberStrategy.GetActivator(clusterIdentity)
 	if member == nil {
 		pm.cluster.Logger().Error("Failed to get activator", slog.Any("kind", clusterIdentity.Kind))
@@ -274,15 +265,6 @@ func (pm *Manager) selectMember(placementContext *cluster.PlacementContext, clus
 	}
 
 	return member
-}
-
-func memberToStoredMember(member *cluster.Member) *types.Member {
-	memberName, epoch := ExtractSystemID(member.Id)
-	return &types.Member{
-		Member: *member,
-		Name:   memberName,
-		Epoch:  epoch,
-	}
 }
 
 func (pm *Manager) onClusterTopology(tplg *clustering.ClusterTopology) {

@@ -9,20 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type recordingStaticRouter struct {
-	placementContext *PlacementContext
-	clusterIdentity  *ClusterIdentity
-	members          Members
-}
-
-func (r *recordingStaticRouter) Route(placementContext *PlacementContext, clusterIdentity *ClusterIdentity, members Members) (*Member, bool) {
-	r.placementContext = placementContext
-	r.clusterIdentity = clusterIdentity
-	r.members = members
-
-	return nil, false
-}
-
 func TestPlacementContextCarriesPlacementParameters(t *testing.T) {
 	placementContext := &PlacementContext{
 		NodeType:   "edge",
@@ -39,13 +25,6 @@ func TestPlacementContextCarriesPlacementParameters(t *testing.T) {
 	require.Equal(t, "tenant-a", placementContext.Affinity)
 	require.True(t, placementContext.ForceLocal)
 	require.Equal(t, "ap-east", placementContext.Labels["region"])
-}
-
-func TestWithStaticRouterStoresRouter(t *testing.T) {
-	router := &recordingStaticRouter{}
-	cfg := Configure("service-cluster", nil, nil, nil, WithStaticRouter(router))
-
-	require.Same(t, router, cfg.StaticRouter)
 }
 
 type recordingIdentityLookup struct {

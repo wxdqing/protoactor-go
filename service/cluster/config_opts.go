@@ -42,13 +42,6 @@ func WithKinds(kinds ...*Kind) ConfigOption {
 	}
 }
 
-// WithStaticRouter sets the static router used by identity lookup placement.
-func WithStaticRouter(router StaticRouter) ConfigOption {
-	return func(c *Config) {
-		c.StaticRouter = router
-	}
-}
-
 // WithPubSubSubscriberTimeout sets a timeout used when delivering a message batch to a subscriber.
 // Default is 5s.
 func WithPubSubSubscriberTimeout(timeout time.Duration) ConfigOption {

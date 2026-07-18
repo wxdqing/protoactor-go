@@ -59,65 +59,11 @@ It is intended for explicit placement and routing inputs:
 
 Implementations should treat `PlacementContext` as read-only during lookup. If an implementation needs to store or mutate `Labels`, it should copy the map first.
 
-## Static Router Integration Boundary
+## Placement Integration Boundary
 
-`service/cluster` should reserve an abstraction for static routing, but it should not vendor or directly implement the static routing algorithm in the first migration.
+`service/cluster` exposes `IdentityLookup` as the single placement integration boundary. The default implementation uses distributed hash; Stable Placement supplies its own implementation when durable ownership is required.
 
-The concrete static routing implementation is expected to come from:
-
-```text
-https://gitee.com/wxdqing/staticrouter.git
-```
-
-At the `service/cluster` layer, define only the routing contract needed by identity lookup and placement.
-
-The reserved interface should be small and independent from the external repository's concrete types:
-
-```go
-type StaticRouter interface {
-	Route(placementContext *PlacementContext, clusterIdentity *ClusterIdentity, members Members) (*Member, bool)
-}
-```
-
-The `Route` method receives:
-
-- the caller-provided `PlacementContext`
-- the target `ClusterIdentity`
-- the current cluster members known to the service cluster runtime
-
-The method returns:
-
-- the selected member and `true` when routing succeeds
-- `nil` and `false` when no member can be selected
-
-The `IdentityLookup` implementation may use this router before falling back to the default placement strategy. The fallback policy must be explicit in the implementation or configuration.
-
-`service/cluster` should provide a config hook for the router:
-
-```go
-type Config struct {
-	// existing fields...
-	StaticRouter StaticRouter
-}
-```
-
-and a config option:
-
-```go
-func WithStaticRouter(router StaticRouter) ConfigOption
-```
-
-The default value should be `nil`, preserving current distributed-hash behavior.
-
-Future staticrouter integration should be implemented as an adapter package or external adapter, for example:
-
-```text
-service/cluster/staticrouteradapter
-```
-
-or an external module that implements `service/cluster.StaticRouter`.
-
-The service cluster core must depend only on the `StaticRouter` interface, not on the concrete `staticrouter` package.
+The cluster core must not add routing-specific configuration hooks. Placement policy, persistence and recovery belong to the injected `IdentityLookup` implementation.
 
 ## Public Call Path
 
@@ -182,8 +128,6 @@ func (p *IdentityLookup) Get(placementContext *cluster.PlacementContext, cluster
 `Manager.Get` may also accept `placementContext *cluster.PlacementContext` to preserve the forwarding chain, even if the first implementation does not use it.
 
 The important requirement is that custom identity lookup implementations can rely on receiving the original caller-provided placement context.
-
-If `Config.StaticRouter` is configured, the default service cluster identity lookup may use it to choose the activation owner before using the current rendezvous hash behavior. If no router is configured, or if the router returns no member, the existing distributed hash behavior should remain the fallback unless a later design chooses strict static routing.
 
 ## Grain Tool Adaptation
 
@@ -255,7 +199,7 @@ Key areas to cover:
 - generated `*.pb.go` files
 - generated grain code and service generator support where it imports the cluster package
 - `service/protobuf/protoc-gen-go-grain` or equivalent service-scoped adapter for service cluster grain output
-- static router interface and configuration hook, without requiring the external staticrouter implementation
+- placement-context propagation through the `IdentityLookup` boundary
 
 The root grain generator has a hard-coded cluster import path and should be preserved as-is unless a later task explicitly changes the old generator.
 
@@ -276,7 +220,7 @@ The migration is complete when:
 - Request and direct lookup paths pass caller-provided placement context to `IdentityLookup.Get`.
 - PID removal paths pass caller-provided placement context to `IdentityLookup.RemovePid`.
 - Existing timeout and retry behavior remains separate from placement context.
-- `service/cluster` exposes a `StaticRouter` interface and config hook suitable for a later adapter over `https://gitee.com/wxdqing/staticrouter.git`.
+- `service/cluster` keeps placement policy behind the `IdentityLookup` interface.
 - The default `disthash` implementation compiles with the new interface.
 - Generated protobuf and grain-related code reference `service/cluster` where required.
 - The grain generator can emit code that imports `github.com/asynkron/protoactor-go/service/cluster`.

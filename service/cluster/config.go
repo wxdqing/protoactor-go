@@ -14,7 +14,6 @@ type Config struct {
 	Address                                      string
 	ClusterProvider                              ClusterProvider
 	IdentityLookup                               IdentityLookup
-	StaticRouter                                 StaticRouter
 	RemoteConfig                                 *remote.Config
 	RequestTimeoutTime                           time.Duration
 	RequestsLogThrottlePeriod                    time.Duration
